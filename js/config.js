@@ -51,14 +51,12 @@ const CONFIG = {
     
     // Google API settings
     GOOGLE_API: {
-        CLIENT_ID: '536864309230-uh3862et3pemo34k2lr3fhks4db3k5a7.apps.googleusercontent.com', // Replace with your Google Client ID
-        API_KEY: 'AIzaSyDSih_kVKFSbPaak6lHIfp1V6fOkCty0rM', // Replace with your Google API Key
-        SCOPES: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets',
+        CLIENT_ID: '536864309230-uh3862et3pemo34k2lr3fhks4db3k5a7.apps.googleusercontent.com',
+        API_KEY: 'AIzaSyDSih_kVKFSbPaak6lHIfp1V6fOkCty0rM',
+        SCOPES: 'https://www.googleapis.com/auth/drive.file',
         DISCOVERY_DOCS: [
-            'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest',
-            'https://sheets.googleapis.com/$discovery/rest?version=v4'
+            'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'
         ],
-        BACKUP_FILENAME: 'virtual_companion_backup.json',
-        SPREADSHEET_TITLE: 'Virtual Companion Data'
+        BACKUP_FILENAME: 'virtual_companion_backup.json'
     }
 };

@@ -20,6 +20,9 @@ const UI = {
         
         // Set up modal close buttons
         this.initModalCloseButtons();
+        
+        // Set up create character button in chat tab
+        this.initCreateCharacterButton();
     },
     
     /**
@@ -34,6 +37,19 @@ const UI = {
                 this.switchTab(tabId);
             });
         });
+    },
+    
+    /**
+     * Initializes the create character button in chat tab
+     */
+    initCreateCharacterButton: function() {
+        const createCharBtn = document.querySelector('.create-character-btn');
+        if (createCharBtn) {
+            createCharBtn.addEventListener('click', () => {
+                const tabId = createCharBtn.getAttribute('data-tab');
+                this.switchTab(tabId);
+            });
+        }
     },
     
     /**

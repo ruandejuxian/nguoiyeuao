@@ -19,8 +19,12 @@ const GoogleAPI = {
         // Load the Google API client library
         this.loadGapiScript()
             .then(() => {
+                // Load the Google Identity Services library
+                return this.loadGisScript();
+            })
+            .then(() => {
                 // Initialize the Google API client
-                gapi.load('client:auth2', this.initClient.bind(this));
+                gapi.load('client', this.initClient.bind(this));
             })
             .catch(error => {
                 console.error('Error loading Google API:', error);
@@ -60,33 +64,95 @@ const GoogleAPI = {
     },
     
     /**
+     * Loads the Google Identity Services script
+     * @returns {Promise} Promise that resolves when script is loaded
+     */
+    loadGisScript: function() {
+        return new Promise((resolve, reject) => {
+            // Check if script is already loaded
+            if (window.google && window.google.accounts) {
+                resolve();
+                return;
+            }
+            
+            // Create script element
+            const script = document.createElement('script');
+            script.src = 'https://accounts.google.com/gsi/client';
+            script.async = true;
+            script.defer = true;
+            
+            script.onload = () => {
+                resolve();
+            };
+            
+            script.onerror = () => {
+                reject(new Error('Failed to load Google Identity Services script'));
+            };
+            
+            // Add script to document
+            document.body.appendChild(script);
+        });
+    },
+    
+    /**
      * Initializes the Google API client
      */
     initClient: function() {
         gapi.client.init({
             apiKey: CONFIG.GOOGLE_API.API_KEY,
-            clientId: CONFIG.GOOGLE_API.CLIENT_ID,
-            discoveryDocs: CONFIG.GOOGLE_API.DISCOVERY_DOCS,
-            scope: CONFIG.GOOGLE_API.SCOPES
+            discoveryDocs: CONFIG.GOOGLE_API.DISCOVERY_DOCS
         }).then(() => {
-            // Listen for sign-in state changes
-            gapi.auth2.getAuthInstance().isSignedIn.listen(this.updateSigninStatus.bind(this));
-            
-            // Handle the initial sign-in state
-            this.updateSigninStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
+            // Set up Google Identity Services
+            google.accounts.id.initialize({
+                client_id: CONFIG.GOOGLE_API.CLIENT_ID,
+                callback: this.handleCredentialResponse.bind(this)
+            });
             
             // Set up sign-in button
-            document.getElementById('google-auth-btn').addEventListener('click', this.handleAuthClick.bind(this));
+            const authBtn = document.getElementById('google-auth-btn');
+            if (authBtn) {
+                authBtn.addEventListener('click', this.handleAuthClick.bind(this));
+            }
             
             // Set up backup/restore buttons
-            document.getElementById('backup-data').addEventListener('click', this.backupData.bind(this));
-            document.getElementById('restore-data').addEventListener('click', this.restoreData.bind(this));
+            const backupBtn = document.getElementById('backup-data');
+            if (backupBtn) {
+                backupBtn.addEventListener('click', this.backupData.bind(this));
+            }
+            
+            const restoreBtn = document.getElementById('restore-data');
+            if (restoreBtn) {
+                restoreBtn.addEventListener('click', this.restoreData.bind(this));
+            }
             
             this.gapiClient = gapi.client;
+            
+            // Check if user is already signed in
+            const token = localStorage.getItem('gapi_access_token');
+            if (token) {
+                this.isAuthenticated = true;
+                this.updateSigninStatus(true);
+            }
+            
         }).catch(error => {
             console.error('Error initializing Google API client:', error);
             this.updateAuthStatus('Lỗi khởi tạo Google API');
         });
+    },
+    
+    /**
+     * Handles the credential response from Google Identity Services
+     * @param {Object} response - Credential response
+     */
+    handleCredentialResponse: function(response) {
+        if (response.credential) {
+            // Store the token
+            localStorage.setItem('gapi_access_token', response.credential);
+            
+            // Update status
+            this.isAuthenticated = true;
+            this.updateSigninStatus(true);
+        }
     },
     
     /**
@@ -102,14 +168,14 @@ const GoogleAPI = {
         const restoreBtn = document.getElementById('restore-data');
         
         if (isSignedIn) {
-            authBtn.innerHTML = '<i class="fab fa-google"></i> Đăng xuất';
-            backupBtn.disabled = false;
-            restoreBtn.disabled = false;
+            if (authBtn) authBtn.innerHTML = '<i class="fab fa-google"></i> Đăng xuất';
+            if (backupBtn) backupBtn.disabled = false;
+            if (restoreBtn) restoreBtn.disabled = false;
             this.updateAuthStatus('Đã đăng nhập');
         } else {
-            authBtn.innerHTML = '<i class="fab fa-google"></i> Đăng nhập với Google';
-            backupBtn.disabled = true;
-            restoreBtn.disabled = true;
+            if (authBtn) authBtn.innerHTML = '<i class="fab fa-google"></i> Đăng nhập với Google';
+            if (backupBtn) backupBtn.disabled = true;
+            if (restoreBtn) restoreBtn.disabled = true;
             this.updateAuthStatus('Chưa đăng nhập');
         }
     },
@@ -120,7 +186,9 @@ const GoogleAPI = {
      */
     updateAuthStatus: function(status) {
         const authStatus = document.getElementById('google-auth-status');
-        authStatus.textContent = status;
+        if (authStatus) {
+            authStatus.textContent = status;
+        }
     },
     
     /**
@@ -129,10 +197,12 @@ const GoogleAPI = {
     handleAuthClick: function() {
         if (this.isAuthenticated) {
             // Sign out
-            gapi.auth2.getAuthInstance().signOut();
+            localStorage.removeItem('gapi_access_token');
+            this.isAuthenticated = false;
+            this.updateSigninStatus(false);
         } else {
             // Sign in
-            gapi.auth2.getAuthInstance().signIn();
+            google.accounts.id.prompt();
         }
     },
     
@@ -318,12 +388,12 @@ const GoogleAPI = {
         form.append('metadata', new Blob([JSON.stringify(metadata)], {type: 'application/json'}));
         form.append('file', file);
         
-        const accessToken = gapi.auth.getToken().access_token;
+        const token = localStorage.getItem('gapi_access_token');
         
         const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
             method: 'POST',
             headers: {
-                'Authorization': 'Bearer ' + accessToken
+                'Authorization': 'Bearer ' + token
             },
             body: form
         });
@@ -340,12 +410,12 @@ const GoogleAPI = {
     updateDriveFile: async function(fileId, content) {
         const file = new Blob([content], {type: 'application/json'});
         
-        const accessToken = gapi.auth.getToken().access_token;
+        const token = localStorage.getItem('gapi_access_token');
         
         await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
             method: 'PATCH',
             headers: {
-                'Authorization': 'Bearer ' + accessToken,
+                'Authorization': 'Bearer ' + token,
                 'Content-Type': 'application/json'
             },
             body: file
@@ -358,11 +428,11 @@ const GoogleAPI = {
      * @returns {string} File content
      */
     readDriveFile: async function(fileId) {
-        const accessToken = gapi.auth.getToken().access_token;
+        const token = localStorage.getItem('gapi_access_token');
         
         const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
             headers: {
-                'Authorization': 'Bearer ' + accessToken
+                'Authorization': 'Bearer ' + token
             }
         });
         

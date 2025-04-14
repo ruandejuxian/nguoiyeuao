@@ -34,6 +34,18 @@ function initApp() {
     // Initialize Google API
     GoogleAPI.init();
     
+    // Initialize Chat Extensions
+    ChatExtensions.init();
+    
+    // Initialize Theme Customizer
+    ThemeCustomizer.init();
+    
+    // Initialize Voice Message
+    VoiceMessage.init();
+    
+    // Initialize Weather Widget
+    WeatherWidget.init();
+    
     // If no character exists, show create tab
     if (!characterLoaded) {
         UI.switchTab('create-tab');

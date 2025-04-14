@@ -1,450 +1,371 @@
-// Google API integration for Virtual Lover App
-
-// Google API client ID
-let googleClientId = '536864309230-uh3862et3pemo34k2lr3fhks4db3k5a7.apps.googleusercontent.com';
-
-// Google API scopes
-const GOOGLE_API_SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets';
-
-// Google API loaded flag
-let googleApiLoaded = false;
-
-// Initialize Google API
-function initGoogleApi(clientId) {
-    if (!clientId) {
-        console.error('Google Client ID not provided');
-        return;
-    }
+/**
+ * Google API integration for the Virtual Companion application
+ */
+const GoogleAPI = {
+    /**
+     * Whether the user is authenticated with Google
+     */
+    isAuthenticated: false,
     
-    googleClientId = clientId;
+    /**
+     * Google API client
+     */
+    gapiClient: null,
     
-    // Load Google API script
-    const script = document.createElement('script');
-    script.src = 'https://apis.google.com/js/api.js';
-    script.onload = loadGoogleApiClient;
-    script.onerror = handleGoogleApiError;
-    document.body.appendChild(script);
-}
-
-// Load Google API client
-function loadGoogleApiClient() {
-    gapi.load('client:auth2', initGoogleApiClient);
-}
-
-// Initialize Google API client
-async function initGoogleApiClient() {
-    try {
-        await gapi.client.init({
-            clientId: googleClientId,
-            scope: GOOGLE_API_SCOPES,
-            discoveryDocs: [
-                'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest',
-                'https://sheets.googleapis.com/$discovery/rest?version=v4'
-            ]
+    /**
+     * Initializes Google API
+     */
+    init: function() {
+        // Load the Google API client library
+        this.loadGapiScript()
+            .then(() => {
+                // Initialize the Google API client
+                gapi.load('client:auth2', this.initClient.bind(this));
+            })
+            .catch(error => {
+                console.error('Error loading Google API:', error);
+                this.updateAuthStatus('Không thể tải Google API');
+            });
+    },
+    
+    /**
+     * Loads the Google API client script
+     * @returns {Promise} Promise that resolves when script is loaded
+     */
+    loadGapiScript: function() {
+        return new Promise((resolve, reject) => {
+            // Check if script is already loaded
+            if (window.gapi) {
+                resolve();
+                return;
+            }
+            
+            // Create script element
+            const script = document.createElement('script');
+            script.src = 'https://apis.google.com/js/api.js';
+            script.async = true;
+            script.defer = true;
+            
+            script.onload = () => {
+                resolve();
+            };
+            
+            script.onerror = () => {
+                reject(new Error('Failed to load Google API script'));
+            };
+            
+            // Add script to document
+            document.body.appendChild(script);
         });
-        
-        // Set loaded flag
-        googleApiLoaded = true;
+    },
+    
+    /**
+     * Initializes the Google API client
+     */
+    initClient: function() {
+        gapi.client.init({
+            apiKey: CONFIG.GOOGLE_API.API_KEY,
+            clientId: CONFIG.GOOGLE_API.CLIENT_ID,
+            discoveryDocs: CONFIG.GOOGLE_API.DISCOVERY_DOCS,
+            scope: CONFIG.GOOGLE_API.SCOPES
+        }).then(() => {
+            // Listen for sign-in state changes
+            gapi.auth2.getAuthInstance().isSignedIn.listen(this.updateSigninStatus.bind(this));
+            
+            // Handle the initial sign-in state
+            this.updateSigninStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
+            
+            // Set up sign-in button
+            document.getElementById('google-auth-btn').addEventListener('click', this.handleAuthClick.bind(this));
+            
+            // Set up backup/restore buttons
+            document.getElementById('backup-data').addEventListener('click', this.backupData.bind(this));
+            document.getElementById('restore-data').addEventListener('click', this.restoreData.bind(this));
+            
+            this.gapiClient = gapi.client;
+        }).catch(error => {
+            console.error('Error initializing Google API client:', error);
+            this.updateAuthStatus('Lỗi khởi tạo Google API');
+        });
+    },
+    
+    /**
+     * Updates the sign-in status
+     * @param {boolean} isSignedIn - Whether user is signed in
+     */
+    updateSigninStatus: function(isSignedIn) {
+        this.isAuthenticated = isSignedIn;
         
         // Update UI
-        updateGoogleApiStatus();
+        const authBtn = document.getElementById('google-auth-btn');
+        const backupBtn = document.getElementById('backup-data');
+        const restoreBtn = document.getElementById('restore-data');
         
-        // Listen for sign-in changes
-        gapi.auth2.getAuthInstance().isSignedIn.listen(updateSignInStatus);
-        
-        // Handle initial sign-in state
-        updateSignInStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
-        
-        console.log('Google API initialized successfully');
-    } catch (error) {
-        console.error('Error initializing Google API client:', error);
-        handleGoogleApiError(error);
-    }
-}
-
-// Handle Google API error
-function handleGoogleApiError(error) {
-    console.error('Google API error:', error);
-    
-    // Update UI
-    const statusElement = document.getElementById('google-api-status');
-    if (statusElement) {
-        statusElement.textContent = 'Lỗi kết nối Google API';
-        statusElement.className = 'text-danger';
-    }
-    
-    // Show error message
-    alert('Không thể kết nối với Google API. Vui lòng kiểm tra kết nối mạng và thử lại sau.');
-}
-
-// Update Google API status in UI
-function updateGoogleApiStatus() {
-    const statusElement = document.getElementById('google-api-status');
-    if (!statusElement) return;
-    
-    if (googleApiLoaded) {
-        if (isSignedIn()) {
-            statusElement.textContent = 'Đã kết nối';
-            statusElement.className = 'text-success';
+        if (isSignedIn) {
+            authBtn.innerHTML = '<i class="fab fa-google"></i> Đăng xuất';
+            backupBtn.disabled = false;
+            restoreBtn.disabled = false;
+            this.updateAuthStatus('Đã đăng nhập');
         } else {
-            statusElement.textContent = 'Chưa đăng nhập';
-            statusElement.className = 'text-warning';
+            authBtn.innerHTML = '<i class="fab fa-google"></i> Đăng nhập với Google';
+            backupBtn.disabled = true;
+            restoreBtn.disabled = true;
+            this.updateAuthStatus('Chưa đăng nhập');
         }
-    } else {
-        statusElement.textContent = 'Chưa kết nối';
-        statusElement.className = 'text-danger';
-    }
-}
-
-// Update sign-in status
-function updateSignInStatus(isSignedIn) {
-    const signInButton = document.getElementById('google-sign-in');
-    const signOutButton = document.getElementById('google-sign-out');
-    const syncButton = document.getElementById('sync-to-google');
+    },
     
-    if (!signInButton || !signOutButton || !syncButton) return;
+    /**
+     * Updates the authentication status display
+     * @param {string} status - Status message
+     */
+    updateAuthStatus: function(status) {
+        const authStatus = document.getElementById('google-auth-status');
+        authStatus.textContent = status;
+    },
     
-    if (isSignedIn) {
-        signInButton.style.display = 'none';
-        signOutButton.style.display = 'block';
-        syncButton.disabled = false;
-    } else {
-        signInButton.style.display = 'block';
-        signOutButton.style.display = 'none';
-        syncButton.disabled = true;
-    }
+    /**
+     * Handles authentication button click
+     */
+    handleAuthClick: function() {
+        if (this.isAuthenticated) {
+            // Sign out
+            gapi.auth2.getAuthInstance().signOut();
+        } else {
+            // Sign in
+            gapi.auth2.getAuthInstance().signIn();
+        }
+    },
     
-    // Update status
-    updateGoogleApiStatus();
-}
-
-// Sign in to Google
-function signInToGoogle() {
-    if (!googleApiLoaded) {
-        alert('Google API chưa được tải. Vui lòng thử lại sau.');
-        return;
-    }
-    
-    gapi.auth2.getAuthInstance().signIn();
-}
-
-// Sign out from Google
-function signOutFromGoogle() {
-    if (!googleApiLoaded) return;
-    
-    gapi.auth2.getAuthInstance().signOut();
-}
-
-// Check if signed in
-function isSignedIn() {
-    return googleApiLoaded && gapi.auth2.getAuthInstance().isSignedIn.get();
-}
-
-// Save data to Google Drive
-async function saveToGoogleDrive(data, filename) {
-    if (!isSignedIn()) {
-        alert('Vui lòng đăng nhập Google trước khi lưu dữ liệu.');
-        return null;
-    }
-    
-    try {
-        // Convert data to JSON string
-        const content = JSON.stringify(data);
+    /**
+     * Backs up data to Google Drive
+     */
+    backupData: async function() {
+        if (!this.isAuthenticated) {
+            Utils.showModal('alert-modal', {
+                title: 'Chưa đăng nhập',
+                message: 'Vui lòng đăng nhập với Google trước khi sao lưu dữ liệu.'
+            });
+            return;
+        }
         
-        // Check if file already exists
-        const existingFile = await findFile(filename);
-        
-        if (existingFile) {
-            // Update existing file
-            const response = await gapi.client.drive.files.update({
-                fileId: existingFile.id,
-                media: {
-                    mimeType: 'application/json',
-                    body: content
-                }
+        try {
+            Utils.showModal('loading-modal', {
+                message: 'Đang sao lưu dữ liệu...'
             });
             
-            console.log('File updated:', response);
-            return existingFile.id;
-        } else {
-            // Create new file
-            const response = await gapi.client.drive.files.create({
-                resource: {
-                    name: filename,
-                    mimeType: 'application/json'
-                },
-                media: {
-                    mimeType: 'application/json',
-                    body: content
-                }
+            // Collect data to backup
+            const backupData = {
+                character: Storage.load(CONFIG.CHARACTER.STORAGE_KEY),
+                chatHistory: Storage.load(CONFIG.CHAT.STORAGE_KEY),
+                diary: Storage.load(CONFIG.DIARY.STORAGE_KEY),
+                version: '1.0',
+                timestamp: new Date().toISOString()
+            };
+            
+            // Convert to JSON
+            const backupContent = JSON.stringify(backupData, null, 2);
+            
+            // Check if backup file already exists
+            let fileId = await this.findBackupFile();
+            
+            if (fileId) {
+                // Update existing file
+                await this.updateDriveFile(fileId, backupContent);
+            } else {
+                // Create new file
+                await this.createDriveFile(backupContent);
+            }
+            
+            Utils.hideModal('loading-modal');
+            
+            Utils.showModal('alert-modal', {
+                title: 'Sao lưu thành công',
+                message: 'Dữ liệu đã được sao lưu vào Google Drive của bạn.'
+            });
+        } catch (error) {
+            console.error('Error backing up data:', error);
+            
+            Utils.hideModal('loading-modal');
+            
+            Utils.showModal('alert-modal', {
+                title: 'Lỗi sao lưu',
+                message: 'Có lỗi xảy ra khi sao lưu dữ liệu: ' + error.message
+            });
+        }
+    },
+    
+    /**
+     * Restores data from Google Drive
+     */
+    restoreData: async function() {
+        if (!this.isAuthenticated) {
+            Utils.showModal('alert-modal', {
+                title: 'Chưa đăng nhập',
+                message: 'Vui lòng đăng nhập với Google trước khi khôi phục dữ liệu.'
+            });
+            return;
+        }
+        
+        try {
+            Utils.showModal('loading-modal', {
+                message: 'Đang khôi phục dữ liệu...'
             });
             
-            console.log('File created:', response);
-            return response.result.id;
-        }
-    } catch (error) {
-        console.error('Error saving to Google Drive:', error);
-        alert('Lỗi khi lưu dữ liệu lên Google Drive. Vui lòng thử lại sau.');
-        return null;
-    }
-}
-
-// Load data from Google Drive
-async function loadFromGoogleDrive(filename) {
-    if (!isSignedIn()) {
-        alert('Vui lòng đăng nhập Google trước khi tải dữ liệu.');
-        return null;
-    }
-    
-    try {
-        // Find file
-        const file = await findFile(filename);
-        
-        if (!file) {
-            console.log('File not found:', filename);
-            return null;
-        }
-        
-        // Get file content
-        const response = await gapi.client.drive.files.get({
-            fileId: file.id,
-            alt: 'media'
-        });
-        
-        console.log('File loaded:', response);
-        
-        // Parse JSON data
-        return JSON.parse(response.body);
-    } catch (error) {
-        console.error('Error loading from Google Drive:', error);
-        alert('Lỗi khi tải dữ liệu từ Google Drive. Vui lòng thử lại sau.');
-        return null;
-    }
-}
-
-// Find file by name
-async function findFile(filename) {
-    try {
-        const response = await gapi.client.drive.files.list({
-            q: `name='${filename}'`,
-            spaces: 'drive',
-            fields: 'files(id, name)'
-        });
-        
-        const files = response.result.files;
-        
-        if (files && files.length > 0) {
-            return files[0];
-        } else {
-            return null;
-        }
-    } catch (error) {
-        console.error('Error finding file:', error);
-        return null;
-    }
-}
-
-// Save data to Google Sheets
-async function saveToGoogleSheets(data, sheetId, sheetName) {
-    if (!isSignedIn()) {
-        alert('Vui lòng đăng nhập Google trước khi lưu dữ liệu.');
-        return false;
-    }
-    
-    try {
-        // Check if spreadsheet exists
-        let spreadsheetId = sheetId;
-        
-        if (!spreadsheetId) {
-            // Create new spreadsheet
-            const response = await gapi.client.sheets.spreadsheets.create({
-                properties: {
-                    title: 'Virtual Lover Data'
-                },
-                sheets: [
-                    {
-                        properties: {
-                            title: sheetName || 'Data'
-                        }
+            // Find backup file
+            const fileId = await this.findBackupFile();
+            
+            if (!fileId) {
+                Utils.hideModal('loading-modal');
+                
+                Utils.showModal('alert-modal', {
+                    title: 'Không tìm thấy bản sao lưu',
+                    message: 'Không tìm thấy bản sao lưu nào trong Google Drive của bạn.'
+                });
+                return;
+            }
+            
+            // Get file content
+            const backupContent = await this.readDriveFile(fileId);
+            
+            if (!backupContent) {
+                throw new Error('Không thể đọc nội dung bản sao lưu');
+            }
+            
+            // Parse backup data
+            const backupData = JSON.parse(backupContent);
+            
+            // Confirm restore
+            Utils.hideModal('loading-modal');
+            
+            Utils.showModal('confirm-modal', {
+                title: 'Xác nhận khôi phục',
+                message: `Bạn có chắc chắn muốn khôi phục dữ liệu từ bản sao lưu ngày ${new Date(backupData.timestamp).toLocaleDateString('vi-VN')}? Dữ liệu hiện tại sẽ bị ghi đè.`,
+                onConfirm: () => {
+                    // Restore data
+                    if (backupData.character) {
+                        Storage.save(CONFIG.CHARACTER.STORAGE_KEY, backupData.character);
                     }
-                ]
+                    
+                    if (backupData.chatHistory) {
+                        Storage.save(CONFIG.CHAT.STORAGE_KEY, backupData.chatHistory);
+                    }
+                    
+                    if (backupData.diary) {
+                        Storage.save(CONFIG.DIARY.STORAGE_KEY, backupData.diary);
+                    }
+                    
+                    // Reload page to apply changes
+                    Utils.showModal('alert-modal', {
+                        title: 'Khôi phục thành công',
+                        message: 'Dữ liệu đã được khôi phục thành công. Trang sẽ được tải lại để áp dụng thay đổi.',
+                        onClose: () => {
+                            window.location.reload();
+                        }
+                    });
+                }
+            });
+        } catch (error) {
+            console.error('Error restoring data:', error);
+            
+            Utils.hideModal('loading-modal');
+            
+            Utils.showModal('alert-modal', {
+                title: 'Lỗi khôi phục',
+                message: 'Có lỗi xảy ra khi khôi phục dữ liệu: ' + error.message
+            });
+        }
+    },
+    
+    /**
+     * Finds the backup file in Google Drive
+     * @returns {string|null} File ID or null if not found
+     */
+    findBackupFile: async function() {
+        try {
+            const response = await this.gapiClient.drive.files.list({
+                q: `name='${CONFIG.GOOGLE_API.BACKUP_FILENAME}' and trashed=false`,
+                fields: 'files(id, name, modifiedTime)',
+                spaces: 'drive'
             });
             
-            spreadsheetId = response.result.spreadsheetId;
-            console.log('Spreadsheet created:', spreadsheetId);
-        }
-        
-        // Convert data to array format for sheets
-        const values = [];
-        
-        // Add headers
-        const headers = Object.keys(data[0] || {});
-        values.push(headers);
-        
-        // Add data rows
-        for (const item of data) {
-            const row = headers.map(header => item[header] || '');
-            values.push(row);
-        }
-        
-        // Update sheet
-        const response = await gapi.client.sheets.spreadsheets.values.update({
-            spreadsheetId: spreadsheetId,
-            range: `${sheetName || 'Data'}!A1`,
-            valueInputOption: 'RAW',
-            resource: {
-                values: values
-            }
-        });
-        
-        console.log('Sheet updated:', response);
-        return true;
-    } catch (error) {
-        console.error('Error saving to Google Sheets:', error);
-        alert('Lỗi khi lưu dữ liệu lên Google Sheets. Vui lòng thử lại sau.');
-        return false;
-    }
-}
-
-// Load data from Google Sheets
-async function loadFromGoogleSheets(sheetId, sheetName) {
-    if (!isSignedIn()) {
-        alert('Vui lòng đăng nhập Google trước khi tải dữ liệu.');
-        return null;
-    }
-    
-    try {
-        // Get sheet data
-        const response = await gapi.client.sheets.spreadsheets.values.get({
-            spreadsheetId: sheetId,
-            range: `${sheetName || 'Data'}`
-        });
-        
-        const values = response.result.values;
-        
-        if (!values || values.length === 0) {
-            console.log('No data found in sheet');
-            return [];
-        }
-        
-        // Convert to object array
-        const headers = values[0];
-        const data = [];
-        
-        for (let i = 1; i < values.length; i++) {
-            const row = values[i];
-            const item = {};
+            const files = response.result.files;
             
-            for (let j = 0; j < headers.length; j++) {
-                item[headers[j]] = row[j] || '';
+            if (files && files.length > 0) {
+                // Return the first matching file
+                return files[0].id;
             }
             
-            data.push(item);
+            return null;
+        } catch (error) {
+            console.error('Error finding backup file:', error);
+            return null;
         }
-        
-        console.log('Sheet loaded:', data);
-        return data;
-    } catch (error) {
-        console.error('Error loading from Google Sheets:', error);
-        alert('Lỗi khi tải dữ liệu từ Google Sheets. Vui lòng thử lại sau.');
-        return null;
-    }
-}
-
-// Sync data with Google
-async function syncWithGoogle() {
-    if (!isSignedIn()) {
-        alert('Vui lòng đăng nhập Google trước khi đồng bộ dữ liệu.');
-        return false;
-    }
+    },
     
-    try {
-        // Save character data
-        const characterId = await saveToGoogleDrive(
-            { character: currentCharacter },
-            'virtual_lover_character.json'
-        );
+    /**
+     * Creates a new backup file in Google Drive
+     * @param {string} content - File content
+     * @returns {string} Created file ID
+     */
+    createDriveFile: async function(content) {
+        const metadata = {
+            name: CONFIG.GOOGLE_API.BACKUP_FILENAME,
+            mimeType: 'application/json'
+        };
         
-        // Save chat history
-        const chatId = await saveToGoogleDrive(
-            { chatHistory: chatHistory },
-            'virtual_lover_chat.json'
-        );
+        const file = new Blob([content], {type: 'application/json'});
+        const form = new FormData();
+        form.append('metadata', new Blob([JSON.stringify(metadata)], {type: 'application/json'}));
+        form.append('file', file);
         
-        // Save diary entries
-        const diaryId = await saveToGoogleDrive(
-            { diaryEntries: diaryEntries },
-            'virtual_lover_diary.json'
-        );
+        const accessToken = gapi.auth.getToken().access_token;
         
-        // Save intimacy data
-        const intimacyId = await saveToGoogleDrive(
-            { 
-                intimacyLevel: getIntimacyLevel(),
-                diaryMilestones: diaryMilestones
+        const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + accessToken
             },
-            'virtual_lover_intimacy.json'
-        );
+            body: form
+        });
         
-        console.log('Data synced with Google Drive');
-        alert('Đồng bộ dữ liệu thành công!');
-        return true;
-    } catch (error) {
-        console.error('Error syncing with Google:', error);
-        alert('Lỗi khi đồng bộ dữ liệu. Vui lòng thử lại sau.');
-        return false;
-    }
-}
-
-// Load data from Google
-async function loadFromGoogle() {
-    if (!isSignedIn()) {
-        alert('Vui lòng đăng nhập Google trước khi tải dữ liệu.');
-        return false;
-    }
+        const data = await response.json();
+        return data.id;
+    },
     
-    try {
-        // Load character data
-        const characterData = await loadFromGoogleDrive('virtual_lover_character.json');
-        if (characterData && characterData.character) {
-            currentCharacter = characterData.character;
-            updateCharacterInfo();
-        }
+    /**
+     * Updates an existing file in Google Drive
+     * @param {string} fileId - File ID to update
+     * @param {string} content - New file content
+     */
+    updateDriveFile: async function(fileId, content) {
+        const file = new Blob([content], {type: 'application/json'});
         
-        // Load chat history
-        const chatData = await loadFromGoogleDrive('virtual_lover_chat.json');
-        if (chatData && chatData.chatHistory) {
-            chatHistory = chatData.chatHistory;
-            displayChatHistory();
-        }
+        const accessToken = gapi.auth.getToken().access_token;
         
-        // Load diary entries
-        const diaryData = await loadFromGoogleDrive('virtual_lover_diary.json');
-        if (diaryData && diaryData.diaryEntries) {
-            diaryEntries = diaryData.diaryEntries;
-            displayDiaryEntries();
-        }
+        await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': 'Bearer ' + accessToken,
+                'Content-Type': 'application/json'
+            },
+            body: file
+        });
+    },
+    
+    /**
+     * Reads a file from Google Drive
+     * @param {string} fileId - File ID to read
+     * @returns {string} File content
+     */
+    readDriveFile: async function(fileId) {
+        const accessToken = gapi.auth.getToken().access_token;
         
-        // Load intimacy data
-        const intimacyData = await loadFromGoogleDrive('virtual_lover_intimacy.json');
-        if (intimacyData) {
-            if (intimacyData.intimacyLevel) {
-                setIntimacyLevel(intimacyData.intimacyLevel);
+        const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+            headers: {
+                'Authorization': 'Bearer ' + accessToken
             }
-            if (intimacyData.diaryMilestones) {
-                diaryMilestones = intimacyData.diaryMilestones;
-            }
-        }
+        });
         
-        // Save to localStorage
-        saveToLocalStorage();
-        
-        console.log('Data loaded from Google Drive');
-        alert('Tải dữ liệu thành công!');
-        return true;
-    } catch (error) {
-        console.error('Error loading from Google:', error);
-        alert('Lỗi khi tải dữ liệu. Vui lòng thử lại sau.');
-        return false;
+        return await response.text();
     }
-}
+};

@@ -1,173 +1,85 @@
-// Storage functionality for Virtual Lover App
-
-// Google API integration for cloud storage
-let googleAuth = null;
-let googleUser = null;
-
-// Initialize Google API
-function initGoogleAPI() {
-    // This function will be implemented when Google API Client ID is available
-    console.log('Google API initialization placeholder');
-}
-
-// Login with Google
-function loginWithGoogle() {
-    // Check if API is loaded
-    if (typeof gapi === 'undefined') {
-        console.error('Google API not loaded');
-        alert('Google API không được tải. Vui lòng kiểm tra kết nối internet và thử lại.');
-        return;
+/**
+ * Storage management for the Virtual Companion application
+ */
+const Storage = {
+    /**
+     * Saves data to localStorage
+     * @param {string} key - Storage key
+     * @param {any} data - Data to save
+     * @returns {boolean} Success status
+     */
+    save: function(key, data) {
+        try {
+            const serializedData = JSON.stringify(data);
+            localStorage.setItem(key, serializedData);
+            return true;
+        } catch (error) {
+            console.error('Error saving to localStorage:', error);
+            return false;
+        }
+    },
+    
+    /**
+     * Loads data from localStorage
+     * @param {string} key - Storage key
+     * @returns {any} Retrieved data or null if not found
+     */
+    load: function(key) {
+        try {
+            const serializedData = localStorage.getItem(key);
+            if (serializedData === null) {
+                return null;
+            }
+            return JSON.parse(serializedData);
+        } catch (error) {
+            console.error('Error loading from localStorage:', error);
+            return null;
+        }
+    },
+    
+    /**
+     * Removes data from localStorage
+     * @param {string} key - Storage key
+     * @returns {boolean} Success status
+     */
+    remove: function(key) {
+        try {
+            localStorage.removeItem(key);
+            return true;
+        } catch (error) {
+            console.error('Error removing from localStorage:', error);
+            return false;
+        }
+    },
+    
+    /**
+     * Checks if data exists in localStorage
+     * @param {string} key - Storage key
+     * @returns {boolean} True if data exists
+     */
+    exists: function(key) {
+        return localStorage.getItem(key) !== null;
+    },
+    
+    /**
+     * Clears all application data from localStorage
+     * @returns {boolean} Success status
+     */
+    clearAll: function() {
+        try {
+            // Only clear keys related to our application
+            const keysToRemove = [
+                CONFIG.CHARACTER.STORAGE_KEY,
+                CONFIG.CHAT.STORAGE_KEY,
+                CONFIG.DIARY.STORAGE_KEY,
+                CONFIG.API.STORAGE_KEYS.API_KEY
+            ];
+            
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+            return true;
+        } catch (error) {
+            console.error('Error clearing localStorage:', error);
+            return false;
+        }
     }
-    
-    // This is a placeholder for actual Google OAuth implementation
-    // In a real implementation, we would use gapi.auth2 for authentication
-    console.log('Google login placeholder');
-    
-    // For demo purposes, simulate successful login
-    simulateGoogleLogin();
-}
-
-// Simulate Google login (for demo)
-function simulateGoogleLogin() {
-    // Simulate user data
-    googleUser = {
-        name: 'Demo User',
-        email: 'demo@example.com',
-        imageUrl: 'https://via.placeholder.com/150',
-        id: 'demo123'
-    };
-    
-    // Update login status
-    isLoggedIn = true;
-    
-    // Update UI
-    updateLoginStatus();
-    
-    // Enable cloud buttons
-    document.getElementById('save-to-cloud').disabled = false;
-    document.getElementById('load-from-cloud').disabled = false;
-    document.getElementById('logout-google').disabled = false;
-    
-    alert('Đã đăng nhập Google thành công (chế độ demo)!');
-}
-
-// Update login status in UI
-function updateLoginStatus() {
-    const loginStatus = document.getElementById('login-status');
-    
-    if (isLoggedIn && googleUser) {
-        loginStatus.textContent = `Đã đăng nhập: ${googleUser.email}`;
-        loginStatus.style.color = 'green';
-    } else {
-        loginStatus.textContent = 'Chưa đăng nhập';
-        loginStatus.style.color = 'inherit';
-    }
-}
-
-// Logout from Google
-function logoutGoogle() {
-    // Reset Google user
-    googleUser = null;
-    
-    // Update login status
-    isLoggedIn = false;
-    
-    // Update UI
-    updateLoginStatus();
-    
-    // Disable cloud buttons
-    document.getElementById('save-to-cloud').disabled = true;
-    document.getElementById('load-from-cloud').disabled = true;
-    document.getElementById('logout-google').disabled = true;
-    
-    alert('Đã đăng xuất khỏi Google!');
-}
-
-// Save data to Google Sheets
-function saveToGoogleSheets() {
-    if (!isLoggedIn) {
-        alert('Vui lòng đăng nhập Google trước khi lưu dữ liệu!');
-        return;
-    }
-    
-    // This is a placeholder for actual Google Sheets API implementation
-    console.log('Save to Google Sheets placeholder');
-    
-    // For demo purposes, simulate successful save
-    alert('Đã lưu dữ liệu lên Google Sheets thành công (chế độ demo)!');
-}
-
-// Load data from Google Sheets
-function loadFromGoogleSheets() {
-    if (!isLoggedIn) {
-        alert('Vui lòng đăng nhập Google trước khi tải dữ liệu!');
-        return;
-    }
-    
-    // This is a placeholder for actual Google Sheets API implementation
-    console.log('Load from Google Sheets placeholder');
-    
-    // For demo purposes, simulate successful load
-    alert('Đã tải dữ liệu từ Google Sheets thành công (chế độ demo)!');
-}
-
-// Save data to Google Drive
-function saveToGoogleDrive() {
-    if (!isLoggedIn) {
-        alert('Vui lòng đăng nhập Google trước khi lưu dữ liệu!');
-        return;
-    }
-    
-    // This is a placeholder for actual Google Drive API implementation
-    console.log('Save to Google Drive placeholder');
-    
-    // Prepare data
-    const data = {
-        character: currentCharacter,
-        chatHistory: chatHistory,
-        intimacyLevel: intimacyLevel,
-        diaryEntries: diaryEntries
-    };
-    
-    // Convert to JSON
-    const jsonData = JSON.stringify(data, null, 2);
-    
-    // For demo purposes, simulate successful save
-    alert('Đã lưu dữ liệu lên Google Drive thành công (chế độ demo)!');
-}
-
-// Load data from Google Drive
-function loadFromGoogleDrive() {
-    if (!isLoggedIn) {
-        alert('Vui lòng đăng nhập Google trước khi tải dữ liệu!');
-        return;
-    }
-    
-    // This is a placeholder for actual Google Drive API implementation
-    console.log('Load from Google Drive placeholder');
-    
-    // For demo purposes, simulate successful load
-    alert('Đã tải dữ liệu từ Google Drive thành công (chế độ demo)!');
-}
-
-// Save to cloud (either Sheets or Drive)
-function saveToCloud() {
-    const storageType = document.querySelector('input[name="storage-type"]:checked').value;
-    
-    if (storageType === 'sheets') {
-        saveToGoogleSheets();
-    } else if (storageType === 'drive') {
-        saveToGoogleDrive();
-    }
-}
-
-// Load from cloud (either Sheets or Drive)
-function loadFromCloud() {
-    const storageType = document.querySelector('input[name="storage-type"]:checked').value;
-    
-    if (storageType === 'sheets') {
-        loadFromGoogleSheets();
-    } else if (storageType === 'drive') {
-        loadFromGoogleDrive();
-    }
-}
+};

@@ -1,7 +1,7 @@
 // Google API integration for Virtual Lover App
 
 // Google API client ID
-let googleClientId = '';
+let googleClientId = '536864309230-uh3862et3pemo34k2lr3fhks4db3k5a7.apps.googleusercontent.com';
 
 // Google API scopes
 const GOOGLE_API_SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets';

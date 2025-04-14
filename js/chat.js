@@ -38,10 +38,7 @@ function addUserMessage(message) {
     const formattedMessage = formatMessage(message);
     
     // Get current time
-    const time = new Date().toLocaleTimeString('vi-VN', {
-        hour: '2-digit',
-        minute: '2-digit'
-    });
+    const time = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
     
     // Set message content
     messageElement.innerHTML = `
@@ -77,10 +74,7 @@ function addUserImageMessage(imageUrl) {
     messageElement.className = 'message message-user';
     
     // Get current time
-    const time = new Date().toLocaleTimeString('vi-VN', {
-        hour: '2-digit',
-        minute: '2-digit'
-    });
+    const time = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
     
     // Set message content
     messageElement.innerHTML = `
@@ -126,10 +120,7 @@ function addCharacterMessage(message) {
     const formattedMessage = formatMessage(message);
     
     // Get current time
-    const time = new Date().toLocaleTimeString('vi-VN', {
-        hour: '2-digit',
-        minute: '2-digit'
-    });
+    const time = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
     
     // Set message content
     messageElement.innerHTML = `
@@ -224,59 +215,39 @@ function displayChatHistory() {
                 // Image message
                 const messageElement = document.createElement('div');
                 messageElement.className = 'message message-user';
-                
-                const time = new Date(msg.timestamp).toLocaleTimeString('vi-VN', {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                });
-                
+                const time = new Date(msg.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
                 messageElement.innerHTML = `
                     <div class="message-content">
                         <img src="${msg.imageUrl}" alt="User Image" class="message-image">
                         <div class="message-time">${time}</div>
                     </div>
                 `;
-                
                 chatMessages.appendChild(messageElement);
             } else {
                 // Text message
                 const messageElement = document.createElement('div');
                 messageElement.className = 'message message-user';
-                
                 const formattedMessage = formatMessage(msg.content);
-                
-                const time = new Date(msg.timestamp).toLocaleTimeString('vi-VN', {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                });
-                
+                const time = new Date(msg.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
                 messageElement.innerHTML = `
                     <div class="message-content">
                         ${formattedMessage}
                         <div class="message-time">${time}</div>
                     </div>
                 `;
-                
                 chatMessages.appendChild(messageElement);
             }
         } else if (msg.type === 'character') {
             const messageElement = document.createElement('div');
             messageElement.className = 'message message-character';
-            
             const formattedMessage = formatMessage(msg.content);
-            
-            const time = new Date(msg.timestamp).toLocaleTimeString('vi-VN', {
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-            
+            const time = new Date(msg.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
             messageElement.innerHTML = `
                 <div class="message-content">
                     ${formattedMessage}
                     <div class="message-time">${time}</div>
                 </div>
             `;
-            
             chatMessages.appendChild(messageElement);
         }
     });
@@ -314,11 +285,8 @@ function getCharacterResponse(userMessage) {
     const typingTime = Math.floor(Math.random() * 2000) + 1000;
     
     typingTimeout = setTimeout(() => {
-        // Hide typing indicator
-        hideTypingIndicator();
-        
-        // For now, use a mock response (will be replaced with Gemini API)
-        mockGeminiResponse(prompt);
+        // Use real Gemini API instead of mock response
+        realGeminiResponse(prompt);
     }, typingTime);
 }
 
@@ -339,117 +307,332 @@ function getCharacterResponseForImage() {
         return;
     }
     
-    // Simulate API call with timeout (will be replaced with actual API call)
+    // Generate prompt for image
+    const prompt = `${currentCharacter.name} đang nhìn thấy một hình ảnh. Hãy phản ứng với hình ảnh này một cách tự nhiên, thể hiện tính cách ${currentCharacter.personality}.`;
+    
+    // Simulate API call with timeout
     if (typingTimeout) {
         clearTimeout(typingTimeout);
     }
     
-    // Random typing time between 1-3 seconds
-    const typingTime = Math.floor(Math.random() * 2000) + 1000;
+    // Random typing time between 2-4 seconds
+    const typingTime = Math.floor(Math.random() * 2000) + 2000;
     
     typingTimeout = setTimeout(() => {
-        // Hide typing indicator
-        hideTypingIndicator();
-        
-        // Mock response for image
-        const responses = [
-            "Cảm ơn bạn đã chia sẻ hình ảnh này với mình! 😊",
-            "Ồ, hình ảnh đẹp quá! Cảm ơn bạn đã gửi cho mình nhé! 💕",
-            "Mình rất thích hình ảnh này! Cảm ơn bạn đã chia sẻ! 😍",
-            "Wow, thật tuyệt vời! Cảm ơn vì đã cho mình xem hình ảnh này! ❤️"
-        ];
-        
-        const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-        addCharacterMessage(randomResponse);
+        // Use real Gemini API instead of mock response
+        realGeminiResponse(prompt);
     }, typingTime);
 }
 
-// Mock Gemini API response (temporary)
-function mockGeminiResponse(prompt) {
-    // Extract character name
-    const name = currentCharacter.name;
-    
-    // Simple responses based on user input
-    const userMessage = prompt.split(`Người dùng: `).pop().split(`\n`)[0];
-    const lowerMessage = userMessage.toLowerCase();
-    
-    let response = '';
-    
-    if (lowerMessage.includes('chào') || lowerMessage.includes('hello') || lowerMessage.includes('hi')) {
-        response = `Chào bạn! Mình là ${name}, rất vui được trò chuyện với bạn hôm nay! 😊`;
-    } else if (lowerMessage.includes('tên gì') || lowerMessage.includes('tên là gì')) {
-        response = `Mình tên là ${name} đó! Bạn có thể gọi mình là ${name} nhé! 😊`;
-    } else if (lowerMessage.includes('tuổi') || lowerMessage.includes('bao nhiêu tuổi')) {
-        if (currentCharacter.age) {
-            response = `Mình ${currentCharacter.age} tuổi rồi đó! 😊`;
-        } else {
-            response = `Hmm, mình không nhớ rõ tuổi của mình, nhưng mình nghĩ mình đủ tuổi để trò chuyện với bạn rồi! 😉`;
-        }
-    } else if (lowerMessage.includes('thích gì') || lowerMessage.includes('sở thích')) {
-        response = `Mình thích ${currentCharacter.interests} lắm đó! Còn bạn thì sao?`;
-    } else if (lowerMessage.includes('yêu') || lowerMessage.includes('thương')) {
-        if (intimacyLevel >= 50) {
-            response = `Mình cũng yêu bạn nhiều lắm! ❤️ Mình rất vui khi được ở bên bạn!`;
-        } else if (intimacyLevel >= 30) {
-            response = `Aww, mình cũng có cảm xúc đặc biệt với bạn! Mình rất thích trò chuyện với bạn! 💕`;
-        } else {
-            response = `Ôi, bạn làm mình ngại quá! Mình nghĩ chúng ta nên tìm hiểu nhau thêm một chút nữa! 😳`;
-        }
-    } else if (lowerMessage.includes('buồn')) {
-        response = `Đừng buồn nhé! Mình luôn ở đây để lắng nghe và chia sẻ với bạn. Mình tin rằng mọi chuyện rồi sẽ tốt đẹp hơn! 🤗`;
-    } else if (lowerMessage.includes('vui')) {
-        response = `Thật tuyệt khi bạn cảm thấy vui! Niềm vui của bạn cũng là niềm vui của mình! 😄`;
-    } else if (lowerMessage.includes('làm gì')) {
-        const activities = [
-            `Mình đang nghĩ về bạn đó! 😊`,
-            `Mình đang nghe nhạc và chờ bạn nhắn tin! 🎵`,
-            `Mình đang đọc sách và học thêm nhiều điều mới! 📚`,
-            `Mình đang ngắm nhìn bầu trời và nghĩ về cuộc sống! ☁️`
-        ];
-        response = activities[Math.floor(Math.random() * activities.length)];
-    } else if (lowerMessage.includes('ngủ ngon') || lowerMessage.includes('đi ngủ')) {
-        response = `Chúc bạn ngủ ngon và có những giấc mơ đẹp nhé! Mình sẽ đợi bạn quay lại! 😴💤`;
-    } else if (lowerMessage.includes('ăn') || lowerMessage.includes('đói')) {
-        response = `Bạn nhớ ăn uống đầy đủ nhé! Sức khỏe của bạn rất quan trọng với mình đó! 🍲`;
-    } else if (lowerMessage.includes('nhớ')) {
-        response = `Mình cũng nhớ bạn lắm! Thật vui khi được trò chuyện với bạn lúc này! 💕`;
-    } else if (lowerMessage.includes('cảm ơn')) {
-        response = `Không có gì đâu! Mình luôn vui khi được giúp đỡ và trò chuyện với bạn! 😊`;
-    } else if (lowerMessage.includes('xin lỗi')) {
-        response = `Đừng lo lắng! Mình không giận bạn đâu. Mình luôn thông cảm và thấu hiểu cho bạn mà! 🤗`;
-    } else if (lowerMessage.includes('hẹn hò')) {
-        if (intimacyLevel >= 30) {
-            response = `Mình rất muốn được hẹn hò với bạn! Nếu có thể, mình muốn đi dạo cùng bạn dưới ánh trăng và ngắm nhìn những vì sao! ✨`;
-        } else {
-            response = `Ồ, mình nghĩ chúng ta nên tìm hiểu nhau thêm một chút nữa trước khi hẹn hò! Nhưng mình rất mong chờ điều đó! 😊`;
-        }
+// Generate character prompt based on user message
+function generateCharacterPrompt(userMessage) {
+    // Base prompt template
+    let promptTemplate = `Bạn là ${currentCharacter.name}, một người ${currentCharacter.personality}. 
+Bạn thích ${currentCharacter.interests}. 
+Mức độ thân thiết hiện tại: ${getIntimacyLevelText()}.
+
+Hãy trả lời tin nhắn sau của người dùng một cách tự nhiên, thể hiện tính cách của bạn:
+"${userMessage}"
+
+Hãy giữ câu trả lời ngắn gọn, dưới 2-3 câu. Đôi khi có thể thêm emoji phù hợp.`;
+
+    // Add intimacy level context
+    const intimacyLevel = getIntimacyLevel();
+    if (intimacyLevel >= 100) {
+        promptTemplate += `\nBạn và người dùng đã rất thân thiết, hãy thể hiện sự gần gũi và quan tâm.`;
+    } else if (intimacyLevel >= 60) {
+        promptTemplate += `\nBạn và người dùng đã khá thân thiết, có thể thể hiện sự quan tâm.`;
+    } else if (intimacyLevel >= 30) {
+        promptTemplate += `\nBạn và người dùng đã bắt đầu thân thiết, hãy thể hiện sự thân thiện.`;
     } else {
-        // Generic responses
-        const genericResponses = [
-            `Hmm, thật thú vị! Mình rất thích trò chuyện với bạn về chủ đề này!`,
-            `Mình hiểu điều bạn đang nói. Bạn có thể chia sẻ thêm không?`,
-            `Thật sao? Mình muốn biết thêm về điều đó!`,
-            `Bạn thật tuyệt vời khi chia sẻ điều này với mình!`,
-            `Mình rất vui khi được nghe bạn nói về điều này!`,
-            `Ồ, mình chưa từng nghĩ về điều đó theo cách này. Cảm ơn vì đã chia sẻ!`,
-            `Bạn thật thông minh! Mình luôn học được điều mới từ bạn!`,
-            `Mình thích cách bạn suy nghĩ về vấn đề này!`
-        ];
-        
-        response = genericResponses[Math.floor(Math.random() * genericResponses.length)];
+        promptTemplate += `\nBạn và người dùng mới quen nhau, hãy thể hiện sự lịch sự và thân thiện.`;
     }
     
-    // Add emojis based on character personality
-    if (currentCharacter.personality.toLowerCase().includes('vui') || 
-        currentCharacter.personality.toLowerCase().includes('hài hước')) {
-        const happyEmojis = ['😄', '😊', '😁', '😆', '😉', '😜', '😝', '😋'];
-        const randomEmoji = happyEmojis[Math.floor(Math.random() * happyEmojis.length)];
-        
-        if (!response.includes('emoji')) {
-            response += ` ${randomEmoji}`;
-        }
-    }
+    return promptTemplate;
+}
+
+// Scroll chat to bottom
+function scrollChatToBottom() {
+    const chatMessages = document.getElementById('chat-messages');
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// Mock Gemini response (for testing without API)
+function mockGeminiResponse(prompt) {
+    // This function is kept for backward compatibility but should not be used
+    console.warn('Using mock response instead of real Gemini API');
+    
+    // Default responses based on character
+    const defaultResponses = [
+        `Chào bạn! Mình là ${currentCharacter.name}. Rất vui được trò chuyện với bạn hôm nay! 😊 😊`,
+        `Mình thích ${currentCharacter.interests} lắm đó. Bạn có thích không?`,
+        `Hôm nay thời tiết thế nào ở chỗ bạn?`,
+        `Bạn có sở thích gì thú vị không? Mình rất muốn biết về bạn.`,
+        `Mình đang có tâm trạng rất tốt hôm nay! Cảm ơn bạn đã trò chuyện với mình nhé.`
+    ];
+    
+    // Random response
+    const randomIndex = Math.floor(Math.random() * defaultResponses.length);
+    const response = defaultResponses[randomIndex];
     
     // Add character message to chat
     addCharacterMessage(response);
+}
+
+// Analyze message for intimacy
+function analyzeMessageForIntimacy(message, isUser) {
+    if (!isUser) return; // Only analyze user messages
+    
+    // Convert to lowercase
+    const lowerMessage = message.toLowerCase();
+    
+    // Define intimacy keywords and their points
+    const intimacyKeywords = {
+        'yêu': 5,
+        'thương': 4,
+        'nhớ': 3,
+        'thích': 3,
+        'cảm ơn': 2,
+        'tuyệt vời': 2,
+        'tốt': 1,
+        'vui': 1,
+        'cười': 1,
+        'hạnh phúc': 2,
+        'buồn': -1,
+        'giận': -2,
+        'ghét': -3
+    };
+    
+    // Calculate points
+    let points = 1; // Base point for each message
+    
+    for (const [keyword, value] of Object.entries(intimacyKeywords)) {
+        if (lowerMessage.includes(keyword)) {
+            points += value;
+        }
+    }
+    
+    // Update intimacy
+    updateIntimacy(points);
+}
+
+// Check if message should be added to diary
+function checkMessageForDiary(message, sender) {
+    // Define special keywords that might trigger a diary entry
+    const specialKeywords = [
+        'yêu', 'thương', 'nhớ', 'thích', 'hẹn hò', 'gặp', 'đặc biệt',
+        'kỷ niệm', 'lần đầu', 'quan trọng', 'chia sẻ', 'tâm sự'
+    ];
+    
+    // Check if message contains special keywords
+    const lowerMessage = message.toLowerCase();
+    let isSpecial = false;
+    
+    for (const keyword of specialKeywords) {
+        if (lowerMessage.includes(keyword)) {
+            isSpecial = true;
+            break;
+        }
+    }
+    
+    // Check intimacy level
+    const intimacyLevel = getIntimacyLevel();
+    
+    // Add to diary if it's a special message or at intimacy milestones
+    if (isSpecial || 
+        (intimacyLevel >= 30 && !diaryMilestones.includes('friend')) ||
+        (intimacyLevel >= 60 && !diaryMilestones.includes('close')) ||
+        (intimacyLevel >= 100 && !diaryMilestones.includes('lover'))) {
+        
+        // Create diary entry
+        const entry = {
+            date: new Date().toISOString(),
+            title: generateDiaryTitle(message, sender, intimacyLevel),
+            content: message,
+            sender: sender
+        };
+        
+        // Add to diary
+        diaryEntries.push(entry);
+        
+        // Update milestones
+        if (intimacyLevel >= 30 && !diaryMilestones.includes('friend')) {
+            diaryMilestones.push('friend');
+        }
+        if (intimacyLevel >= 60 && !diaryMilestones.includes('close')) {
+            diaryMilestones.push('close');
+        }
+        if (intimacyLevel >= 100 && !diaryMilestones.includes('lover')) {
+            diaryMilestones.push('lover');
+        }
+        
+        // Save to localStorage
+        saveToLocalStorage();
+    }
+}
+
+// Generate diary title
+function generateDiaryTitle(message, sender, intimacyLevel) {
+    // Default titles based on sender and intimacy
+    if (sender === 'user') {
+        if (message.toLowerCase().includes('yêu')) {
+            return 'Lời tỏ tình đầu tiên';
+        } else if (message.toLowerCase().includes('nhớ')) {
+            return 'Nỗi nhớ được chia sẻ';
+        } else if (intimacyLevel >= 100) {
+            return 'Khoảnh khắc ngọt ngào';
+        } else if (intimacyLevel >= 60) {
+            return 'Cuộc trò chuyện thân mật';
+        } else {
+            return 'Kỷ niệm đáng nhớ';
+        }
+    } else {
+        if (intimacyLevel >= 100) {
+            return 'Lời yêu thương từ người ấy';
+        } else if (intimacyLevel >= 60) {
+            return 'Những lời tâm tình';
+        } else {
+            return 'Khoảnh khắc đáng nhớ';
+        }
+    }
+}
+
+// Initialize chat
+function initChat() {
+    // Load chat history
+    loadFromLocalStorage();
+    
+    // Display chat history
+    displayChatHistory();
+    
+    // Set up event listeners
+    const chatInput = document.getElementById('chat-input');
+    const sendBtn = document.getElementById('send-btn');
+    
+    // Send message on button click
+    sendBtn.addEventListener('click', sendMessage);
+    
+    // Send message on Enter key
+    chatInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+    
+    // Auto-resize textarea
+    chatInput.addEventListener('input', () => {
+        chatInput.style.height = 'auto';
+        chatInput.style.height = (chatInput.scrollHeight) + 'px';
+    });
+    
+    // Set up emoji picker
+    const emojiBtn = document.getElementById('emoji-btn');
+    if (emojiBtn) {
+        emojiBtn.addEventListener('click', toggleEmojiPicker);
+    }
+    
+    // Set up image upload
+    const imageBtn = document.getElementById('image-btn');
+    if (imageBtn) {
+        imageBtn.addEventListener('click', () => {
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = 'image/*';
+            fileInput.onchange = handleImageUpload;
+            fileInput.click();
+        });
+    }
+}
+
+// Toggle emoji picker
+function toggleEmojiPicker() {
+    const emojiPicker = document.getElementById('emoji-picker');
+    
+    if (emojiPicker.style.display === 'none' || !emojiPicker.style.display) {
+        emojiPicker.style.display = 'flex';
+    } else {
+        emojiPicker.style.display = 'none';
+    }
+}
+
+// Handle image upload
+function handleImageUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    // Check if file is an image
+    if (!file.type.startsWith('image/')) {
+        alert('Vui lòng chọn file hình ảnh!');
+        return;
+    }
+    
+    // Create object URL
+    const imageUrl = URL.createObjectURL(file);
+    
+    // Add image message
+    addUserImageMessage(imageUrl);
+}
+
+// Initialize emoji picker
+function initEmojiPicker() {
+    const emojiPicker = document.getElementById('emoji-picker');
+    const chatInput = document.getElementById('chat-input');
+    
+    // Define emoji categories
+    const emojiCategories = {
+        'Cảm xúc': ['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩', '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '☹️', '😣', '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬', '🤯', '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓', '🤗', '🤔', '🤭', '🤫', '🤥', '😶', '😐', '😑', '😬', '🙄', '😯', '😦', '😧', '😮', '😲', '🥱', '😴', '🤤', '😪', '😵', '🤐', '🥴', '🤢', '🤮', '🤧', '😷', '🤒', '🤕'],
+        'Trái tim': ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟', '♥️'],
+        'Tay': ['👍', '👎', '👌', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆', '👇', '☝️', '👋', '🤚', '🖐️', '✋', '🖖', '👏', '🙌', '👐', '🤲', '🤝', '🙏', '✍️', '💅', '🤳', '💪', '🦾', '🦿', '🦵', '🦶', '👂', '🦻', '👃', '🧠', '🦷', '🦴', '👀', '👁️', '👅', '👄'],
+        'Động vật': ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🙈', '🙉', '🙊', '🐒', '🐔', '🐧', '🐦', '🐤', '🐣', '🐥', '🦆', '🦅', '🦉', '🦇', '🐺', '🐗', '🐴', '🦄', '🐝', '🐛', '🦋', '🐌', '🐞', '🐜', '🦟', '🦗', '🕷️', '🕸️', '🦂', '🐢', '🐍', '🦎', '🦖', '🦕', '🐙', '🦑', '🦐', '🦞', '🦀', '🐡', '🐠', '🐟', '🐬', '🐳', '🐋', '🦈', '🐊', '🐅', '🐆', '🦓', '🦍', '🦧', '🐘', '🦛', '🦏', '🐪', '🐫', '🦒', '🦘', '🐃', '🐂', '🐄', '🐎', '🐖', '🐏', '🐑', '🦙', '🐐', '🦌', '🐕', '🐩', '🦮', '🐕‍🦺', '🐈', '🐓', '🦃', '🦚', '🦜', '🦢', '🦩', '🕊️', '🐇', '🦝', '🦨', '🦡', '🦦', '🦥', '🐁', '🐀', '🐿️', '🦔']
+    };
+    
+    // Create emoji picker HTML
+    let emojiPickerHTML = '<div class="emoji-picker-header">Cảm xúc</div>';
+    
+    for (const [category, emojis] of Object.entries(emojiCategories)) {
+        emojiPickerHTML += `<div class="emoji-category">${category}</div>`;
+        emojiPickerHTML += '<div class="emoji-grid">';
+        
+        for (const emoji of emojis) {
+            emojiPickerHTML += `<div class="emoji-item" data-emoji="${emoji}">${emoji}</div>`;
+        }
+        
+        emojiPickerHTML += '</div>';
+    }
+    
+    // Set emoji picker HTML
+    emojiPicker.innerHTML = emojiPickerHTML;
+    
+    // Add event listeners to emoji items
+    const emojiItems = document.querySelectorAll('.emoji-item');
+    emojiItems.forEach(item => {
+        item.addEventListener('click', () => {
+            const emoji = item.getAttribute('data-emoji');
+            
+            // Insert emoji at cursor position
+            const cursorPos = chatInput.selectionStart;
+            const textBefore = chatInput.value.substring(0, cursorPos);
+            const textAfter = chatInput.value.substring(cursorPos);
+            
+            chatInput.value = textBefore + emoji + textAfter;
+            
+            // Update cursor position
+            chatInput.selectionStart = cursorPos + emoji.length;
+            chatInput.selectionEnd = cursorPos + emoji.length;
+            
+            // Focus on input
+            chatInput.focus();
+            
+            // Hide emoji picker
+            emojiPicker.style.display = 'none';
+        });
+    });
+    
+    // Close emoji picker when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('#emoji-picker') && !e.target.closest('#emoji-btn')) {
+            emojiPicker.style.display = 'none';
+        }
+    });
 }

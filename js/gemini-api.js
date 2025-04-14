@@ -9,7 +9,7 @@ async function callGeminiAPI(prompt, apiKey) {
         console.error('Gemini API key not provided');
         return null;
     }
-    
+
     try {
         const response = await fetch(`${GEMINI_API_ENDPOINT}?key=${apiKey}`, {
             method: 'POST',
@@ -20,9 +20,7 @@ async function callGeminiAPI(prompt, apiKey) {
                 contents: [
                     {
                         parts: [
-                            {
-                                text: prompt
-                            }
+                            { text: prompt }
                         ]
                     }
                 ],
@@ -34,17 +32,16 @@ async function callGeminiAPI(prompt, apiKey) {
                 }
             })
         });
-        
+
         const data = await response.json();
         
         if (data.error) {
             console.error('Gemini API error:', data.error);
             return null;
         }
-        
+
         if (data.candidates && data.candidates.length > 0 && 
-            data.candidates[0].content && 
-            data.candidates[0].content.parts && 
+            data.candidates[0].content && data.candidates[0].content.parts && 
             data.candidates[0].content.parts.length > 0) {
             return data.candidates[0].content.parts[0].text;
         } else {
@@ -69,8 +66,7 @@ async function getGeminiResponse(prompt, apiKey) {
     return response;
 }
 
-// Replace mock response with actual Gemini API call
-// This function will replace the mockGeminiResponse in chat.js when API key is provided
+// This function will be used in chat.js to get real responses from Gemini API
 async function realGeminiResponse(prompt) {
     // Hide typing indicator
     hideTypingIndicator();
@@ -129,21 +125,27 @@ function updateAvatarEmotion(message) {
     switch (emotion) {
         case 'happy':
             avatar.classList.add('avatar-happy');
+            avatar.src = 'assets/images/avatar-happy.png';
             break;
         case 'excited':
             avatar.classList.add('avatar-excited');
+            avatar.src = 'assets/images/avatar-excited.png';
             break;
         case 'sad':
             avatar.classList.add('avatar-sad');
+            avatar.src = 'assets/images/avatar-sad.png';
             break;
         case 'angry':
             avatar.classList.add('avatar-angry');
+            avatar.src = 'assets/images/avatar-angry.png';
             break;
         case 'shy':
             avatar.classList.add('avatar-shy');
+            avatar.src = 'assets/images/avatar-shy.png';
             break;
         default:
             // No emotion class for neutral
+            avatar.src = 'assets/images/default-avatar.png';
             break;
     }
 }
@@ -155,7 +157,6 @@ async function validateGeminiAPIKey(apiKey) {
     try {
         // Simple test prompt
         const testPrompt = "Hello, please respond with 'API key is valid'";
-        
         const response = await callGeminiAPI(testPrompt, apiKey);
         
         // Check if response contains validation text

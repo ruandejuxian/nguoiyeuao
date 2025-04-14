@@ -3,5 +3,8 @@
   <circle cx="100" cy="100" r="90" fill="#ffffff" stroke="#ff4b8d" stroke-width="4"/>
   <circle cx="70" cy="80" r="10" fill="#2d3436"/>
   <circle cx="130" cy="80" r="10" fill="#2d3436"/>
-  <path d="M70,130 Q100,160 130,130" stroke="#2d3436" stroke-width="5" fill="none"/>
+  <path d="M70,130 Q100,145 130,130" stroke="#2d3436" stroke-width="5" fill="none"/>
+  <path d="M50,60 Q70,40 90,60" stroke="#2d3436" stroke-width="3" fill="none"/>
+  <path d="M110,60 Q130,40 150,60" stroke="#2d3436" stroke-width="3" fill="none"/>
+  <line x1="60" y1="110" x2="140" y2="110" stroke="#2d3436" stroke-width="3"/>
 </svg>

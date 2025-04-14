@@ -1,359 +1,450 @@
 // Google API integration for Virtual Lover App
 
-// Google API credentials
-const GOOGLE_CLIENT_ID = '536864309230-uh3862et3pemo34k2lr3fhks4db3k5a7.apps.googleusercontent.com'; // To be filled by user
-const GOOGLE_API_KEY = 'AIzaSyDSih_kVKFSbPaak6lHIfp1V6fOkCty0rM'; // To be filled by user
+// Google API client ID
+let googleClientId = '';
 
 // Google API scopes
-const GOOGLE_SCOPES = [
-    'https://www.googleapis.com/auth/drive.file',
-    'https://www.googleapis.com/auth/spreadsheets'
-];
+const GOOGLE_API_SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets';
 
-// Load Google API
-function loadGoogleAPI() {
-    // This function will be called when the Google API script is loaded
-    console.log('Loading Google API...');
+// Google API loaded flag
+let googleApiLoaded = false;
+
+// Initialize Google API
+function initGoogleApi(clientId) {
+    if (!clientId) {
+        console.error('Google Client ID not provided');
+        return;
+    }
     
-    // Create script element
+    googleClientId = clientId;
+    
+    // Load Google API script
     const script = document.createElement('script');
     script.src = 'https://apis.google.com/js/api.js';
-    script.onload = initGoogleAPILibrary;
-    document.head.appendChild(script);
+    script.onload = loadGoogleApiClient;
+    script.onerror = handleGoogleApiError;
+    document.body.appendChild(script);
 }
 
-// Initialize Google API library
-function initGoogleAPILibrary() {
-    console.log('Google API script loaded, initializing...');
-    
-    // Load auth2 library
-    gapi.load('client:auth2', initGoogleClient);
+// Load Google API client
+function loadGoogleApiClient() {
+    gapi.load('client:auth2', initGoogleApiClient);
 }
 
 // Initialize Google API client
-function initGoogleClient() {
-    console.log('Initializing Google API client...');
+async function initGoogleApiClient() {
+    try {
+        await gapi.client.init({
+            clientId: googleClientId,
+            scope: GOOGLE_API_SCOPES,
+            discoveryDocs: [
+                'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest',
+                'https://sheets.googleapis.com/$discovery/rest?version=v4'
+            ]
+        });
+        
+        // Set loaded flag
+        googleApiLoaded = true;
+        
+        // Update UI
+        updateGoogleApiStatus();
+        
+        // Listen for sign-in changes
+        gapi.auth2.getAuthInstance().isSignedIn.listen(updateSignInStatus);
+        
+        // Handle initial sign-in state
+        updateSignInStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
+        
+        console.log('Google API initialized successfully');
+    } catch (error) {
+        console.error('Error initializing Google API client:', error);
+        handleGoogleApiError(error);
+    }
+}
+
+// Handle Google API error
+function handleGoogleApiError(error) {
+    console.error('Google API error:', error);
     
-    // Check if client ID is set
-    if (!GOOGLE_CLIENT_ID) {
-        console.warn('Google Client ID not set');
-        return;
+    // Update UI
+    const statusElement = document.getElementById('google-api-status');
+    if (statusElement) {
+        statusElement.textContent = 'Lỗi kết nối Google API';
+        statusElement.className = 'text-danger';
     }
     
-    // Initialize client
-    gapi.client.init({
-        apiKey: GOOGLE_API_KEY,
-        clientId: GOOGLE_CLIENT_ID,
-        scope: GOOGLE_SCOPES.join(' ')
-    }).then(() => {
-        // Listen for sign-in state changes
-        gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
-        
-        // Handle the initial sign-in state
-        updateSigninStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
-        
-        console.log('Google API client initialized');
-    }).catch(error => {
-        console.error('Error initializing Google API client:', error);
-    });
+    // Show error message
+    alert('Không thể kết nối với Google API. Vui lòng kiểm tra kết nối mạng và thử lại sau.');
+}
+
+// Update Google API status in UI
+function updateGoogleApiStatus() {
+    const statusElement = document.getElementById('google-api-status');
+    if (!statusElement) return;
+    
+    if (googleApiLoaded) {
+        if (isSignedIn()) {
+            statusElement.textContent = 'Đã kết nối';
+            statusElement.className = 'text-success';
+        } else {
+            statusElement.textContent = 'Chưa đăng nhập';
+            statusElement.className = 'text-warning';
+        }
+    } else {
+        statusElement.textContent = 'Chưa kết nối';
+        statusElement.className = 'text-danger';
+    }
 }
 
 // Update sign-in status
-function updateSigninStatus(isSignedIn) {
-    console.log('Sign-in status changed:', isSignedIn);
+function updateSignInStatus(isSignedIn) {
+    const signInButton = document.getElementById('google-sign-in');
+    const signOutButton = document.getElementById('google-sign-out');
+    const syncButton = document.getElementById('sync-to-google');
+    
+    if (!signInButton || !signOutButton || !syncButton) return;
     
     if (isSignedIn) {
-        // User is signed in
-        const googleAuth = gapi.auth2.getAuthInstance();
-        const googleUser = googleAuth.currentUser.get();
-        const profile = googleUser.getBasicProfile();
-        
-        // Update user info
-        updateUserInfo(profile);
-        
-        // Enable cloud buttons
-        document.getElementById('save-to-cloud').disabled = false;
-        document.getElementById('load-from-cloud').disabled = false;
-        document.getElementById('logout-google').disabled = false;
+        signInButton.style.display = 'none';
+        signOutButton.style.display = 'block';
+        syncButton.disabled = false;
     } else {
-        // User is signed out
-        clearUserInfo();
-        
-        // Disable cloud buttons
-        document.getElementById('save-to-cloud').disabled = true;
-        document.getElementById('load-from-cloud').disabled = true;
-        document.getElementById('logout-google').disabled = true;
+        signInButton.style.display = 'block';
+        signOutButton.style.display = 'none';
+        syncButton.disabled = true;
     }
+    
+    // Update status
+    updateGoogleApiStatus();
 }
 
-// Update user info
-function updateUserInfo(profile) {
-    if (!profile) return;
-    
-    // Update global variables
-    googleUser = {
-        id: profile.getId(),
-        name: profile.getName(),
-        email: profile.getEmail(),
-        imageUrl: profile.getImageUrl()
-    };
-    
-    isLoggedIn = true;
-    
-    // Update UI
-    const loginStatus = document.getElementById('login-status');
-    loginStatus.textContent = `Đã đăng nhập: ${googleUser.email}`;
-    loginStatus.style.color = 'green';
-}
-
-// Clear user info
-function clearUserInfo() {
-    // Reset global variables
-    googleUser = null;
-    isLoggedIn = false;
-    
-    // Update UI
-    const loginStatus = document.getElementById('login-status');
-    loginStatus.textContent = 'Chưa đăng nhập';
-    loginStatus.style.color = 'inherit';
-}
-
-// Actual Google sign-in function
-function handleGoogleSignIn() {
-    if (!gapi || !gapi.auth2) {
-        console.error('Google API not loaded');
-        alert('Google API không được tải. Vui lòng kiểm tra kết nối internet và thử lại.');
+// Sign in to Google
+function signInToGoogle() {
+    if (!googleApiLoaded) {
+        alert('Google API chưa được tải. Vui lòng thử lại sau.');
         return;
     }
     
-    const googleAuth = gapi.auth2.getAuthInstance();
-    googleAuth.signIn().catch(error => {
-        console.error('Error signing in:', error);
-        alert('Đăng nhập không thành công. Vui lòng thử lại.');
-    });
+    gapi.auth2.getAuthInstance().signIn();
 }
 
-// Google sign-out function
-function handleGoogleSignOut() {
-    if (!gapi || !gapi.auth2) {
-        console.error('Google API not loaded');
-        return;
+// Sign out from Google
+function signOutFromGoogle() {
+    if (!googleApiLoaded) return;
+    
+    gapi.auth2.getAuthInstance().signOut();
+}
+
+// Check if signed in
+function isSignedIn() {
+    return googleApiLoaded && gapi.auth2.getAuthInstance().isSignedIn.get();
+}
+
+// Save data to Google Drive
+async function saveToGoogleDrive(data, filename) {
+    if (!isSignedIn()) {
+        alert('Vui lòng đăng nhập Google trước khi lưu dữ liệu.');
+        return null;
     }
     
-    const googleAuth = gapi.auth2.getAuthInstance();
-    googleAuth.signOut().then(() => {
-        console.log('User signed out');
-        clearUserInfo();
-    }).catch(error => {
-        console.error('Error signing out:', error);
-    });
-}
-
-// Create a new Google Sheet
-function createGoogleSheet(title) {
-    return gapi.client.sheets.spreadsheets.create({
-        properties: {
-            title: title
-        }
-    }).then(response => {
-        console.log('Sheet created:', response.result.spreadsheetId);
-        return response.result.spreadsheetId;
-    }).catch(error => {
-        console.error('Error creating sheet:', error);
-        throw error;
-    });
-}
-
-// Save data to Google Sheet
-function saveDataToSheet(sheetId, data) {
-    // Prepare data for sheet
-    const sheetData = [
-        ['Character Name', 'Character Age', 'Character Personality', 'Character Interests', 'Speaking Style', 'Intimacy Level'],
-        [
-            data.character.name,
-            data.character.age || '',
-            data.character.personality,
-            data.character.interests,
-            data.character.speakingStyle || '',
-            data.intimacyLevel
-        ]
-    ];
-    
-    // Add chat history
-    sheetData.push(['Chat History']);
-    sheetData.push(['Type', 'Content', 'Timestamp']);
-    
-    data.chatHistory.forEach(msg => {
-        sheetData.push([msg.type, msg.content, msg.timestamp]);
-    });
-    
-    // Add diary entries
-    sheetData.push(['Diary Entries']);
-    sheetData.push(['Title', 'Content', 'Date']);
-    
-    data.diaryEntries.forEach(entry => {
-        sheetData.push([entry.title, entry.content, entry.date]);
-    });
-    
-    // Update sheet
-    return gapi.client.sheets.spreadsheets.values.update({
-        spreadsheetId: sheetId,
-        range: 'Sheet1',
-        valueInputOption: 'RAW',
-        resource: {
-            values: sheetData
-        }
-    }).then(response => {
-        console.log('Sheet updated:', response.result);
-        return response.result;
-    }).catch(error => {
-        console.error('Error updating sheet:', error);
-        throw error;
-    });
-}
-
-// Load data from Google Sheet
-function loadDataFromSheet(sheetId) {
-    return gapi.client.sheets.spreadsheets.values.get({
-        spreadsheetId: sheetId,
-        range: 'Sheet1'
-    }).then(response => {
-        console.log('Sheet data loaded:', response.result);
+    try {
+        // Convert data to JSON string
+        const content = JSON.stringify(data);
         
-        // Parse data
+        // Check if file already exists
+        const existingFile = await findFile(filename);
+        
+        if (existingFile) {
+            // Update existing file
+            const response = await gapi.client.drive.files.update({
+                fileId: existingFile.id,
+                media: {
+                    mimeType: 'application/json',
+                    body: content
+                }
+            });
+            
+            console.log('File updated:', response);
+            return existingFile.id;
+        } else {
+            // Create new file
+            const response = await gapi.client.drive.files.create({
+                resource: {
+                    name: filename,
+                    mimeType: 'application/json'
+                },
+                media: {
+                    mimeType: 'application/json',
+                    body: content
+                }
+            });
+            
+            console.log('File created:', response);
+            return response.result.id;
+        }
+    } catch (error) {
+        console.error('Error saving to Google Drive:', error);
+        alert('Lỗi khi lưu dữ liệu lên Google Drive. Vui lòng thử lại sau.');
+        return null;
+    }
+}
+
+// Load data from Google Drive
+async function loadFromGoogleDrive(filename) {
+    if (!isSignedIn()) {
+        alert('Vui lòng đăng nhập Google trước khi tải dữ liệu.');
+        return null;
+    }
+    
+    try {
+        // Find file
+        const file = await findFile(filename);
+        
+        if (!file) {
+            console.log('File not found:', filename);
+            return null;
+        }
+        
+        // Get file content
+        const response = await gapi.client.drive.files.get({
+            fileId: file.id,
+            alt: 'media'
+        });
+        
+        console.log('File loaded:', response);
+        
+        // Parse JSON data
+        return JSON.parse(response.body);
+    } catch (error) {
+        console.error('Error loading from Google Drive:', error);
+        alert('Lỗi khi tải dữ liệu từ Google Drive. Vui lòng thử lại sau.');
+        return null;
+    }
+}
+
+// Find file by name
+async function findFile(filename) {
+    try {
+        const response = await gapi.client.drive.files.list({
+            q: `name='${filename}'`,
+            spaces: 'drive',
+            fields: 'files(id, name)'
+        });
+        
+        const files = response.result.files;
+        
+        if (files && files.length > 0) {
+            return files[0];
+        } else {
+            return null;
+        }
+    } catch (error) {
+        console.error('Error finding file:', error);
+        return null;
+    }
+}
+
+// Save data to Google Sheets
+async function saveToGoogleSheets(data, sheetId, sheetName) {
+    if (!isSignedIn()) {
+        alert('Vui lòng đăng nhập Google trước khi lưu dữ liệu.');
+        return false;
+    }
+    
+    try {
+        // Check if spreadsheet exists
+        let spreadsheetId = sheetId;
+        
+        if (!spreadsheetId) {
+            // Create new spreadsheet
+            const response = await gapi.client.sheets.spreadsheets.create({
+                properties: {
+                    title: 'Virtual Lover Data'
+                },
+                sheets: [
+                    {
+                        properties: {
+                            title: sheetName || 'Data'
+                        }
+                    }
+                ]
+            });
+            
+            spreadsheetId = response.result.spreadsheetId;
+            console.log('Spreadsheet created:', spreadsheetId);
+        }
+        
+        // Convert data to array format for sheets
+        const values = [];
+        
+        // Add headers
+        const headers = Object.keys(data[0] || {});
+        values.push(headers);
+        
+        // Add data rows
+        for (const item of data) {
+            const row = headers.map(header => item[header] || '');
+            values.push(row);
+        }
+        
+        // Update sheet
+        const response = await gapi.client.sheets.spreadsheets.values.update({
+            spreadsheetId: spreadsheetId,
+            range: `${sheetName || 'Data'}!A1`,
+            valueInputOption: 'RAW',
+            resource: {
+                values: values
+            }
+        });
+        
+        console.log('Sheet updated:', response);
+        return true;
+    } catch (error) {
+        console.error('Error saving to Google Sheets:', error);
+        alert('Lỗi khi lưu dữ liệu lên Google Sheets. Vui lòng thử lại sau.');
+        return false;
+    }
+}
+
+// Load data from Google Sheets
+async function loadFromGoogleSheets(sheetId, sheetName) {
+    if (!isSignedIn()) {
+        alert('Vui lòng đăng nhập Google trước khi tải dữ liệu.');
+        return null;
+    }
+    
+    try {
+        // Get sheet data
+        const response = await gapi.client.sheets.spreadsheets.values.get({
+            spreadsheetId: sheetId,
+            range: `${sheetName || 'Data'}`
+        });
+        
         const values = response.result.values;
         
-        if (!values || values.length < 2) {
-            throw new Error('Invalid sheet data');
+        if (!values || values.length === 0) {
+            console.log('No data found in sheet');
+            return [];
         }
         
-        // Parse character data
-        const characterData = values[1];
-        const character = {
-            name: characterData[0],
-            age: characterData[1],
-            personality: characterData[2],
-            interests: characterData[3],
-            speakingStyle: characterData[4],
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-        };
+        // Convert to object array
+        const headers = values[0];
+        const data = [];
         
-        const intimacyLevel = parseInt(characterData[5]) || 0;
-        
-        // Find chat history section
-        let chatHistoryIndex = -1;
-        for (let i = 0; i < values.length; i++) {
-            if (values[i][0] === 'Chat History') {
-                chatHistoryIndex = i;
-                break;
+        for (let i = 1; i < values.length; i++) {
+            const row = values[i];
+            const item = {};
+            
+            for (let j = 0; j < headers.length; j++) {
+                item[headers[j]] = row[j] || '';
             }
+            
+            data.push(item);
         }
         
-        // Parse chat history
-        const chatHistory = [];
-        if (chatHistoryIndex > 0 && chatHistoryIndex + 2 < values.length) {
-            for (let i = chatHistoryIndex + 2; i < values.length; i++) {
-                if (values[i][0] === 'Diary Entries') {
-                    break;
-                }
-                
-                if (values[i].length >= 3) {
-                    chatHistory.push({
-                        type: values[i][0],
-                        content: values[i][1],
-                        timestamp: values[i][2]
-                    });
-                }
-            }
-        }
-        
-        // Find diary entries section
-        let diaryEntriesIndex = -1;
-        for (let i = 0; i < values.length; i++) {
-            if (values[i][0] === 'Diary Entries') {
-                diaryEntriesIndex = i;
-                break;
-            }
-        }
-        
-        // Parse diary entries
-        const diaryEntries = [];
-        if (diaryEntriesIndex > 0 && diaryEntriesIndex + 2 < values.length) {
-            for (let i = diaryEntriesIndex + 2; i < values.length; i++) {
-                if (values[i].length >= 3) {
-                    diaryEntries.push({
-                        id: Date.now() + i,
-                        title: values[i][0],
-                        content: values[i][1],
-                        date: values[i][2]
-                    });
-                }
-            }
-        }
-        
-        return {
-            character,
-            chatHistory,
-            intimacyLevel,
-            diaryEntries
-        };
-    }).catch(error => {
-        console.error('Error loading sheet data:', error);
-        throw error;
-    });
-}
-
-// Create a file in Google Drive
-function createDriveFile(name, content, mimeType) {
-    const metadata = {
-        name: name,
-        mimeType: mimeType
-    };
-    
-    const blob = new Blob([content], { type: mimeType });
-    const file = new File([blob], name, { type: mimeType });
-    
-    const form = new FormData();
-    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-    form.append('file', file);
-    
-    return fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-        method: 'POST',
-        headers: new Headers({
-            'Authorization': 'Bearer ' + gapi.auth.getToken().access_token
-        }),
-        body: form
-    }).then(response => response.json())
-    .then(data => {
-        console.log('File created:', data);
-        return data.id;
-    }).catch(error => {
-        console.error('Error creating file:', error);
-        throw error;
-    });
-}
-
-// Load file from Google Drive
-function loadDriveFile(fileId) {
-    return gapi.client.drive.files.get({
-        fileId: fileId,
-        alt: 'media'
-    }).then(response => {
-        console.log('File loaded:', response.result);
-        return response.result;
-    }).catch(error => {
-        console.error('Error loading file:', error);
-        throw error;
-    });
-}
-
-// Initialize Google API on page load
-document.addEventListener('DOMContentLoaded', function() {
-    // Check if client ID is set in settings
-    const clientId = localStorage.getItem('virtualLover_googleClientId');
-    if (clientId) {
-        GOOGLE_CLIENT_ID = clientId;
-        loadGoogleAPI();
+        console.log('Sheet loaded:', data);
+        return data;
+    } catch (error) {
+        console.error('Error loading from Google Sheets:', error);
+        alert('Lỗi khi tải dữ liệu từ Google Sheets. Vui lòng thử lại sau.');
+        return null;
     }
-});
+}
+
+// Sync data with Google
+async function syncWithGoogle() {
+    if (!isSignedIn()) {
+        alert('Vui lòng đăng nhập Google trước khi đồng bộ dữ liệu.');
+        return false;
+    }
+    
+    try {
+        // Save character data
+        const characterId = await saveToGoogleDrive(
+            { character: currentCharacter },
+            'virtual_lover_character.json'
+        );
+        
+        // Save chat history
+        const chatId = await saveToGoogleDrive(
+            { chatHistory: chatHistory },
+            'virtual_lover_chat.json'
+        );
+        
+        // Save diary entries
+        const diaryId = await saveToGoogleDrive(
+            { diaryEntries: diaryEntries },
+            'virtual_lover_diary.json'
+        );
+        
+        // Save intimacy data
+        const intimacyId = await saveToGoogleDrive(
+            { 
+                intimacyLevel: getIntimacyLevel(),
+                diaryMilestones: diaryMilestones
+            },
+            'virtual_lover_intimacy.json'
+        );
+        
+        console.log('Data synced with Google Drive');
+        alert('Đồng bộ dữ liệu thành công!');
+        return true;
+    } catch (error) {
+        console.error('Error syncing with Google:', error);
+        alert('Lỗi khi đồng bộ dữ liệu. Vui lòng thử lại sau.');
+        return false;
+    }
+}
+
+// Load data from Google
+async function loadFromGoogle() {
+    if (!isSignedIn()) {
+        alert('Vui lòng đăng nhập Google trước khi tải dữ liệu.');
+        return false;
+    }
+    
+    try {
+        // Load character data
+        const characterData = await loadFromGoogleDrive('virtual_lover_character.json');
+        if (characterData && characterData.character) {
+            currentCharacter = characterData.character;
+            updateCharacterInfo();
+        }
+        
+        // Load chat history
+        const chatData = await loadFromGoogleDrive('virtual_lover_chat.json');
+        if (chatData && chatData.chatHistory) {
+            chatHistory = chatData.chatHistory;
+            displayChatHistory();
+        }
+        
+        // Load diary entries
+        const diaryData = await loadFromGoogleDrive('virtual_lover_diary.json');
+        if (diaryData && diaryData.diaryEntries) {
+            diaryEntries = diaryData.diaryEntries;
+            displayDiaryEntries();
+        }
+        
+        // Load intimacy data
+        const intimacyData = await loadFromGoogleDrive('virtual_lover_intimacy.json');
+        if (intimacyData) {
+            if (intimacyData.intimacyLevel) {
+                setIntimacyLevel(intimacyData.intimacyLevel);
+            }
+            if (intimacyData.diaryMilestones) {
+                diaryMilestones = intimacyData.diaryMilestones;
+            }
+        }
+        
+        // Save to localStorage
+        saveToLocalStorage();
+        
+        console.log('Data loaded from Google Drive');
+        alert('Tải dữ liệu thành công!');
+        return true;
+    } catch (error) {
+        console.error('Error loading from Google:', error);
+        alert('Lỗi khi tải dữ liệu. Vui lòng thử lại sau.');
+        return false;
+    }
+}

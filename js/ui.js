@@ -32,6 +32,8 @@ const UI = {
         const navItems = document.querySelectorAll('.nav-menu li');
         
         navItems.forEach(item => {
+            if (!item.getAttribute('data-tab')) return; // Skip items without data-tab attribute
+            
             item.addEventListener('click', () => {
                 const tabId = item.getAttribute('data-tab');
                 this.switchTab(tabId);
@@ -208,12 +210,7 @@ const UI = {
                 Storage.save(CONFIG.API.STORAGE_KEYS.API_KEY, apiKey);
                 
                 // Update connection status
-                const statusIndicator = document.querySelector('.status-indicator');
-                const statusText = document.querySelector('.status-text');
-                
-                statusIndicator.classList.remove('offline');
-                statusIndicator.classList.add('online');
-                statusText.textContent = 'Đã kết nối API';
+                this.updateConnectionStatus(true);
                 
                 // Show success message
                 Utils.showModal('alert-modal', {
@@ -242,7 +239,7 @@ const UI = {
         }
         
         // Reset character button
-        const resetCharBtn = document.getElementById('reset-character');
+        const resetCharBtn = document.getElementById('clear-character');
         if (resetCharBtn) {
             resetCharBtn.addEventListener('click', () => {
                 Utils.showModal('confirm-modal', {
@@ -260,7 +257,7 @@ const UI = {
         }
         
         // Reset all button
-        const resetAllBtn = document.getElementById('reset-all');
+        const resetAllBtn = document.getElementById('clear-all');
         if (resetAllBtn) {
             resetAllBtn.addEventListener('click', () => {
                 Utils.showModal('confirm-modal', {
@@ -292,6 +289,26 @@ const UI = {
                 Utils.hideModal('alert-modal');
             });
         }
+        
+        // Close buttons with class 'close-modal'
+        const closeButtons = document.querySelectorAll('.close-modal');
+        closeButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // Find the parent modal
+                const modal = button.closest('.modal');
+                if (modal) {
+                    modal.classList.remove('active');
+                }
+            });
+        });
+        
+        // Confirm modal buttons
+        const confirmCancelBtn = document.getElementById('confirm-cancel');
+        if (confirmCancelBtn) {
+            confirmCancelBtn.addEventListener('click', () => {
+                Utils.hideModal('confirm-modal');
+            });
+        }
     },
     
     /**
@@ -299,17 +316,28 @@ const UI = {
      * @param {boolean} isConnected - Whether API is connected
      */
     updateConnectionStatus: function(isConnected) {
+        // Add defensive programming to handle cases where elements might not exist
         const statusIndicator = document.querySelector('.status-indicator');
-        const statusText = document.querySelector('.status-text');
+        const statusText = document.getElementById('connection-status-text');
         
-        if (isConnected) {
-            statusIndicator.classList.remove('offline');
-            statusIndicator.classList.add('online');
-            statusText.textContent = 'Đã kết nối API';
-        } else {
-            statusIndicator.classList.remove('online');
-            statusIndicator.classList.add('offline');
-            statusText.textContent = 'Chưa kết nối API';
+        // If elements don't exist, log a warning and return
+        if (!statusIndicator || !statusText) {
+            console.warn('Connection status elements not found in the DOM');
+            return;
+        }
+        
+        try {
+            if (isConnected) {
+                statusIndicator.classList.remove('offline');
+                statusIndicator.classList.add('online');
+                statusText.textContent = 'Đã kết nối API';
+            } else {
+                statusIndicator.classList.remove('online');
+                statusIndicator.classList.add('offline');
+                statusText.textContent = 'Chưa kết nối API';
+            }
+        } catch (error) {
+            console.error('Error updating connection status:', error);
         }
     }
 };

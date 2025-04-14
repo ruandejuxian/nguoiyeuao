@@ -1,8 +1,8 @@
 // Google API integration for Virtual Lover App
 
 // Google API credentials
-const GOOGLE_CLIENT_ID = ''; // To be filled by user
-const GOOGLE_API_KEY = ''; // To be filled by user
+const GOOGLE_CLIENT_ID = '536864309230-uh3862et3pemo34k2lr3fhks4db3k5a7.apps.googleusercontent.com'; // To be filled by user
+const GOOGLE_API_KEY = 'AIzaSyDSih_kVKFSbPaak6lHIfp1V6fOkCty0rM'; // To be filled by user
 
 // Google API scopes
 const GOOGLE_SCOPES = [

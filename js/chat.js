@@ -1,389 +1,455 @@
-/**
- * Chat functionality for the Virtual Companion application
- */
-const Chat = {
-    /**
-     * Chat history
-     */
-    history: [],
+// Chat functionality for Virtual Lover App
+
+// Send message from user
+function sendMessage() {
+    const chatInput = document.getElementById('chat-input');
+    const message = chatInput.value.trim();
     
-    /**
-     * Initializes chat from storage
-     */
-    init: function() {
-        // Try to load chat history from storage
-        const savedHistory = Storage.load(CONFIG.CHAT.STORAGE_KEY);
-        
-        if (savedHistory && Array.isArray(savedHistory)) {
-            this.history = savedHistory;
-            this.renderChatHistory();
-            return true;
-        }
-        
-        this.history = [];
-        return false;
-    },
+    if (!message) return;
     
-    /**
-     * Sends a message to the companion
-     * @param {string} message - User message
-     */
-    sendMessage: async function(message) {
-        if (!message.trim() || !Character.current) return;
-        
-        // Add user message to history
-        this.addMessage('user', message);
-        
-        // Update character stats
-        Character.current.stats.messagesSent++;
-        Storage.save(CONFIG.CHARACTER.STORAGE_KEY, Character.current);
-        
-        // Check for intimacy keywords
-        this.checkIntimacyKeywords(message);
-        
-        // Show typing indicator
-        this.showTypingIndicator();
-        
-        // Generate AI response
-        try {
-            const apiKey = Storage.load(CONFIG.API.STORAGE_KEYS.API_KEY);
-            
-            if (!apiKey) {
-                this.hideTypingIndicator();
-                Utils.showModal('alert-modal', {
-                    title: 'API Key không tồn tại',
-                    message: 'Vui lòng thêm Gemini API Key trong phần Cài đặt để sử dụng chức năng chat.'
+    // Clear input
+    chatInput.value = '';
+    
+    // Add user message to chat
+    addUserMessage(message);
+    
+    // Analyze message for intimacy
+    analyzeMessageForIntimacy(message, true);
+    
+    // Check if message should be added to diary
+    checkMessageForDiary(message, 'user');
+    
+    // Show typing indicator
+    showTypingIndicator();
+    
+    // Get response from Gemini API
+    getCharacterResponse(message);
+}
+
+// Add user message to chat
+function addUserMessage(message) {
+    const chatMessages = document.getElementById('chat-messages');
+    
+    // Create message element
+    const messageElement = document.createElement('div');
+    messageElement.className = 'message message-user';
+    
+    // Format message with emojis and links
+    const formattedMessage = formatMessage(message);
+    
+    // Get current time
+    const time = new Date().toLocaleTimeString('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+    
+    // Set message content
+    messageElement.innerHTML = `
+        <div class="message-content">
+            ${formattedMessage}
+            <div class="message-time">${time}</div>
+        </div>
+    `;
+    
+    // Add to chat
+    chatMessages.appendChild(messageElement);
+    
+    // Add to chat history
+    chatHistory.push({
+        type: 'user',
+        content: message,
+        timestamp: new Date().toISOString()
+    });
+    
+    // Save to localStorage
+    saveToLocalStorage();
+    
+    // Scroll to bottom
+    scrollChatToBottom();
+}
+
+// Add user image message to chat
+function addUserImageMessage(imageUrl) {
+    const chatMessages = document.getElementById('chat-messages');
+    
+    // Create message element
+    const messageElement = document.createElement('div');
+    messageElement.className = 'message message-user';
+    
+    // Get current time
+    const time = new Date().toLocaleTimeString('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+    
+    // Set message content
+    messageElement.innerHTML = `
+        <div class="message-content">
+            <img src="${imageUrl}" alt="User Image" class="message-image">
+            <div class="message-time">${time}</div>
+        </div>
+    `;
+    
+    // Add to chat
+    chatMessages.appendChild(messageElement);
+    
+    // Add to chat history
+    chatHistory.push({
+        type: 'user',
+        content: '[Image]',
+        imageUrl: imageUrl,
+        timestamp: new Date().toISOString()
+    });
+    
+    // Save to localStorage
+    saveToLocalStorage();
+    
+    // Scroll to bottom
+    scrollChatToBottom();
+    
+    // Show typing indicator
+    showTypingIndicator();
+    
+    // Get response for image
+    getCharacterResponseForImage();
+}
+
+// Add character message to chat
+function addCharacterMessage(message) {
+    const chatMessages = document.getElementById('chat-messages');
+    
+    // Create message element
+    const messageElement = document.createElement('div');
+    messageElement.className = 'message message-character';
+    
+    // Format message with emojis and links
+    const formattedMessage = formatMessage(message);
+    
+    // Get current time
+    const time = new Date().toLocaleTimeString('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+    
+    // Set message content
+    messageElement.innerHTML = `
+        <div class="message-content">
+            ${formattedMessage}
+            <div class="message-time">${time}</div>
+        </div>
+    `;
+    
+    // Add to chat
+    chatMessages.appendChild(messageElement);
+    
+    // Add to chat history
+    chatHistory.push({
+        type: 'character',
+        content: message,
+        timestamp: new Date().toISOString()
+    });
+    
+    // Save to localStorage
+    saveToLocalStorage();
+    
+    // Scroll to bottom
+    scrollChatToBottom();
+    
+    // Analyze message for intimacy
+    analyzeMessageForIntimacy(message, false);
+    
+    // Check if message should be added to diary
+    checkMessageForDiary(message, 'character');
+    
+    // Update avatar emotion based on message
+    updateAvatarEmotion(message);
+}
+
+// Show typing indicator
+function showTypingIndicator() {
+    const chatMessages = document.getElementById('chat-messages');
+    
+    // Remove existing typing indicator
+    const existingIndicator = document.querySelector('.typing-indicator');
+    if (existingIndicator) {
+        existingIndicator.remove();
+    }
+    
+    // Create typing indicator
+    const indicatorElement = document.createElement('div');
+    indicatorElement.className = 'typing-indicator';
+    indicatorElement.innerHTML = `
+        <span></span>
+        <span></span>
+        <span></span>
+    `;
+    
+    // Add to chat
+    chatMessages.appendChild(indicatorElement);
+    
+    // Scroll to bottom
+    scrollChatToBottom();
+}
+
+// Hide typing indicator
+function hideTypingIndicator() {
+    const existingIndicator = document.querySelector('.typing-indicator');
+    if (existingIndicator) {
+        existingIndicator.remove();
+    }
+}
+
+// Format message with emojis and links
+function formatMessage(message) {
+    // Convert URLs to links
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    let formattedMessage = message.replace(urlRegex, url => {
+        return `<a href="${url}" target="_blank">${url}</a>`;
+    });
+    
+    return formattedMessage;
+}
+
+// Display chat history
+function displayChatHistory() {
+    const chatMessages = document.getElementById('chat-messages');
+    
+    // Clear chat messages
+    chatMessages.innerHTML = '';
+    
+    // Add messages from history
+    chatHistory.forEach(msg => {
+        if (msg.type === 'user') {
+            if (msg.imageUrl) {
+                // Image message
+                const messageElement = document.createElement('div');
+                messageElement.className = 'message message-user';
+                
+                const time = new Date(msg.timestamp).toLocaleTimeString('vi-VN', {
+                    hour: '2-digit',
+                    minute: '2-digit'
                 });
-                return;
+                
+                messageElement.innerHTML = `
+                    <div class="message-content">
+                        <img src="${msg.imageUrl}" alt="User Image" class="message-image">
+                        <div class="message-time">${time}</div>
+                    </div>
+                `;
+                
+                chatMessages.appendChild(messageElement);
+            } else {
+                // Text message
+                const messageElement = document.createElement('div');
+                messageElement.className = 'message message-user';
+                
+                const formattedMessage = formatMessage(msg.content);
+                
+                const time = new Date(msg.timestamp).toLocaleTimeString('vi-VN', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                
+                messageElement.innerHTML = `
+                    <div class="message-content">
+                        ${formattedMessage}
+                        <div class="message-time">${time}</div>
+                    </div>
+                `;
+                
+                chatMessages.appendChild(messageElement);
             }
+        } else if (msg.type === 'character') {
+            const messageElement = document.createElement('div');
+            messageElement.className = 'message message-character';
             
-            // Generate prompt for AI
-            const prompt = Character.generatePrompt(message, this.history.slice(-10));
+            const formattedMessage = formatMessage(msg.content);
             
-            // Random delay to simulate typing
-            const typingDelay = Utils.getRandomNumber(
-                CONFIG.CHAT.TYPING_DELAY_MIN, 
-                CONFIG.CHAT.TYPING_DELAY_MAX
-            );
-            
-            // Wait for typing delay
-            await new Promise(resolve => setTimeout(resolve, typingDelay));
-            
-            // Call Gemini API
-            const response = await this.callGeminiAPI(apiKey, prompt);
-            
-            // Hide typing indicator
-            this.hideTypingIndicator();
-            
-            if (response) {
-                // Add AI response to history
-                this.addMessage('companion', response);
-                
-                // Update character stats
-                Character.current.stats.messagesReceived++;
-                Storage.save(CONFIG.CHARACTER.STORAGE_KEY, Character.current);
-                
-                // Update intimacy
-                Character.updateIntimacy(CONFIG.CHAT.POINTS_PER_MESSAGE);
-                
-                // Check for special moments
-                this.checkSpecialMoments(message, response);
-                
-                // Update avatar emotion based on response
-                this.updateAvatarEmotion(response);
-            }
-        } catch (error) {
-            console.error('Error generating response:', error);
-            this.hideTypingIndicator();
-            
-            // Add error message
-            this.addMessage('system', 'Có lỗi xảy ra khi tạo phản hồi. Vui lòng thử lại sau.');
-        }
-    },
-    
-    /**
-     * Calls the Gemini API to generate a response
-     * @param {string} apiKey - Gemini API key
-     * @param {string} prompt - Prompt for the AI
-     * @returns {string} AI response
-     */
-    callGeminiAPI: async function(apiKey, prompt) {
-        try {
-            const url = `${CONFIG.API.GEMINI_API_URL}?key=${apiKey}`;
-            
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    contents: [{
-                        parts: [{
-                            text: prompt
-                        }]
-                    }],
-                    generationConfig: {
-                        temperature: 0.7,
-                        topK: 40,
-                        topP: 0.95,
-                        maxOutputTokens: 1024,
-                    }
-                })
+            const time = new Date(msg.timestamp).toLocaleTimeString('vi-VN', {
+                hour: '2-digit',
+                minute: '2-digit'
             });
             
-            const data = await response.json();
+            messageElement.innerHTML = `
+                <div class="message-content">
+                    ${formattedMessage}
+                    <div class="message-time">${time}</div>
+                </div>
+            `;
             
-            if (data.error) {
-                console.error('API error:', data.error);
-                return null;
-            }
-            
-            if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-                return data.candidates[0].content.parts[0].text;
-            }
-            
-            return null;
-        } catch (error) {
-            console.error('Error calling Gemini API:', error);
-            return null;
+            chatMessages.appendChild(messageElement);
         }
-    },
+    });
     
-    /**
-     * Adds a message to the chat history
-     * @param {string} sender - 'user', 'companion', or 'system'
-     * @param {string} content - Message content
-     */
-    addMessage: function(sender, content) {
-        const message = {
-            id: Utils.generateId(),
-            sender: sender,
-            content: content,
-            timestamp: new Date().toISOString()
-        };
-        
-        // Add to history
-        this.history.push(message);
-        
-        // Limit history size
-        if (this.history.length > CONFIG.CHAT.MAX_HISTORY_LENGTH) {
-            this.history = this.history.slice(-CONFIG.CHAT.MAX_HISTORY_LENGTH);
-        }
-        
-        // Save to storage
-        Storage.save(CONFIG.CHAT.STORAGE_KEY, this.history);
-        
-        // Render the new message
-        this.renderMessage(message);
-        
-        // Scroll to bottom
-        this.scrollToBottom();
-    },
-    
-    /**
-     * Renders the chat history
-     */
-    renderChatHistory: function() {
-        const chatMessages = document.getElementById('chat-messages');
-        
-        // Clear existing messages
-        chatMessages.innerHTML = '';
-        
-        // Render each message
-        this.history.forEach(message => {
-            this.renderMessage(message);
-        });
-        
-        // Scroll to bottom
-        this.scrollToBottom();
-    },
-    
-    /**
-     * Renders a single message
-     * @param {Object} message - Message object
-     */
-    renderMessage: function(message) {
-        const chatMessages = document.getElementById('chat-messages');
-        
-        // Create message element
-        const messageElement = document.createElement('div');
-        messageElement.classList.add('message', message.sender);
-        
-        // Format message content with links
-        const formattedContent = Utils.linkify(Utils.escapeHtml(message.content));
-        
-        // Format timestamp
-        const timestamp = new Date(message.timestamp);
-        const formattedTime = Utils.formatDate(timestamp);
-        
-        // Set message HTML
-        messageElement.innerHTML = `
-            <div class="message-content">${formattedContent}</div>
-            <span class="message-time">${formattedTime}</span>
-        `;
-        
-        // Add to chat container
-        chatMessages.appendChild(messageElement);
-    },
-    
-    /**
-     * Shows the typing indicator
-     */
-    showTypingIndicator: function() {
-        const chatMessages = document.getElementById('chat-messages');
-        
-        // Create typing indicator
-        const typingElement = document.createElement('div');
-        typingElement.classList.add('message', 'companion', 'typing-indicator-container');
-        typingElement.id = 'typing-indicator';
-        
-        typingElement.innerHTML = `
-            <div class="typing-indicator">
-                <span></span>
-                <span></span>
-                <span></span>
-            </div>
-        `;
-        
-        // Add to chat container
-        chatMessages.appendChild(typingElement);
-        
-        // Scroll to bottom
-        this.scrollToBottom();
-    },
-    
-    /**
-     * Hides the typing indicator
-     */
-    hideTypingIndicator: function() {
-        const typingIndicator = document.getElementById('typing-indicator');
-        if (typingIndicator) {
-            typingIndicator.remove();
-        }
-    },
-    
-    /**
-     * Scrolls the chat to the bottom
-     */
-    scrollToBottom: function() {
-        const chatMessages = document.getElementById('chat-messages');
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-    },
-    
-    /**
-     * Clears the chat history
-     */
-    clearHistory: function() {
-        this.history = [];
-        Storage.remove(CONFIG.CHAT.STORAGE_KEY);
-        this.renderChatHistory();
-    },
-    
-    /**
-     * Checks for intimacy keywords in user message
-     * @param {string} message - User message
-     */
-    checkIntimacyKeywords: function(message) {
-        if (!Character.current) return;
-        
-        const lowerMessage = message.toLowerCase();
-        let pointsToAdd = 0;
-        
-        // Check for keywords that increase intimacy
-        Object.keys(CONFIG.CHAT.POINTS_FOR_KEYWORDS).forEach(keyword => {
-            if (lowerMessage.includes(keyword)) {
-                pointsToAdd += CONFIG.CHAT.POINTS_FOR_KEYWORDS[keyword];
-                
-                // Check for first love word
-                if (keyword === 'yêu' && 
-                    !Character.current.stats.specialMoments.includes('first_love_word')) {
-                    
-                    Character.current.stats.specialMoments.push('first_love_word');
-                    
-                    // Add to diary
-                    Diary.addEntry({
-                        type: 'first_love_word',
-                        title: 'Lời yêu đầu tiên',
-                        content: `Bạn đã nói "yêu" với ${Character.current.name} lần đầu tiên!`,
-                        timestamp: new Date().toISOString()
-                    });
-                }
-            }
-        });
-        
-        if (pointsToAdd > 0) {
-            Character.updateIntimacy(pointsToAdd);
-        }
-    },
-    
-    /**
-     * Checks for special moments in the conversation
-     * @param {string} userMessage - User message
-     * @param {string} aiResponse - AI response
-     */
-    checkSpecialMoments: function(userMessage, aiResponse) {
-        if (!Character.current) return;
-        
-        // Check for special keywords or patterns
-        // This is a simplified implementation - could be expanded
-        const specialKeywords = {
-            'proposal': ['cưới', 'kết hôn', 'làm vợ', 'làm chồng'],
-            'anniversary': ['kỷ niệm', 'ngày đặc biệt'],
-            'compliment': ['đẹp quá', 'dễ thương quá', 'thông minh quá']
-        };
-        
-        const lowerUserMessage = userMessage.toLowerCase();
-        
-        for (const [moment, keywords] of Object.entries(specialKeywords)) {
-            for (const keyword of keywords) {
-                if (lowerUserMessage.includes(keyword)) {
-                    // Add to diary if it's a new special moment
-                    const momentKey = `special_${moment}`;
-                    if (!Character.current.stats.specialMoments.includes(momentKey)) {
-                        Character.current.stats.specialMoments.push(momentKey);
-                        Storage.save(CONFIG.CHARACTER.STORAGE_KEY, Character.current);
-                        
-                        let title = '';
-                        let content = '';
-                        
-                        switch (moment) {
-                            case 'proposal':
-                                title = 'Lời cầu hôn';
-                                content = `Bạn đã ngỏ lời cầu hôn với ${Character.current.name}!`;
-                                break;
-                            case 'anniversary':
-                                title = 'Kỷ niệm đặc biệt';
-                                content = `Bạn và ${Character.current.name} đã nhắc đến ngày kỷ niệm của hai người.`;
-                                break;
-                            case 'compliment':
-                                title = 'Lời khen ngợi';
-                                content = `Bạn đã dành những lời khen ngợi ngọt ngào cho ${Character.current.name}.`;
-                                break;
-                        }
-                        
-                        Diary.addEntry({
-                            type: momentKey,
-                            title: title,
-                            content: content,
-                            timestamp: new Date().toISOString()
-                        });
-                    }
-                }
-            }
-        }
-    },
-    
-    /**
-     * Updates the avatar emotion based on message content
-     * @param {string} message - Message content
-     */
-    updateAvatarEmotion: function(message) {
-        // This would be implemented with actual avatar animations
-        // For now, we'll just detect the emotion
-        const emotion = Utils.detectEmotion(message);
-        console.log('Detected emotion:', emotion);
-        
-        // In a full implementation, this would change the avatar image/animation
-        // based on the detected emotion
+    // Scroll to bottom
+    scrollChatToBottom();
+}
+
+// Get character response using Gemini API
+function getCharacterResponse(userMessage) {
+    // Check if character exists
+    if (!currentCharacter) {
+        hideTypingIndicator();
+        alert('Vui lòng tạo nhân vật trước khi chat!');
+        return;
     }
-};
+    
+    // Check if API key exists
+    if (!geminiApiKey) {
+        hideTypingIndicator();
+        alert('Vui lòng nhập Gemini API Key trong phần cài đặt!');
+        switchTab('settings');
+        return;
+    }
+    
+    // Generate prompt
+    const prompt = generateCharacterPrompt(userMessage);
+    
+    // Simulate API call with timeout (will be replaced with actual API call)
+    if (typingTimeout) {
+        clearTimeout(typingTimeout);
+    }
+    
+    // Random typing time between 1-3 seconds
+    const typingTime = Math.floor(Math.random() * 2000) + 1000;
+    
+    typingTimeout = setTimeout(() => {
+        // Hide typing indicator
+        hideTypingIndicator();
+        
+        // For now, use a mock response (will be replaced with Gemini API)
+        mockGeminiResponse(prompt);
+    }, typingTime);
+}
+
+// Get character response for image
+function getCharacterResponseForImage() {
+    // Check if character exists
+    if (!currentCharacter) {
+        hideTypingIndicator();
+        alert('Vui lòng tạo nhân vật trước khi chat!');
+        return;
+    }
+    
+    // Check if API key exists
+    if (!geminiApiKey) {
+        hideTypingIndicator();
+        alert('Vui lòng nhập Gemini API Key trong phần cài đặt!');
+        switchTab('settings');
+        return;
+    }
+    
+    // Simulate API call with timeout (will be replaced with actual API call)
+    if (typingTimeout) {
+        clearTimeout(typingTimeout);
+    }
+    
+    // Random typing time between 1-3 seconds
+    const typingTime = Math.floor(Math.random() * 2000) + 1000;
+    
+    typingTimeout = setTimeout(() => {
+        // Hide typing indicator
+        hideTypingIndicator();
+        
+        // Mock response for image
+        const responses = [
+            "Cảm ơn bạn đã chia sẻ hình ảnh này với mình! 😊",
+            "Ồ, hình ảnh đẹp quá! Cảm ơn bạn đã gửi cho mình nhé! 💕",
+            "Mình rất thích hình ảnh này! Cảm ơn bạn đã chia sẻ! 😍",
+            "Wow, thật tuyệt vời! Cảm ơn vì đã cho mình xem hình ảnh này! ❤️"
+        ];
+        
+        const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+        addCharacterMessage(randomResponse);
+    }, typingTime);
+}
+
+// Mock Gemini API response (temporary)
+function mockGeminiResponse(prompt) {
+    // Extract character name
+    const name = currentCharacter.name;
+    
+    // Simple responses based on user input
+    const userMessage = prompt.split(`Người dùng: `).pop().split(`\n`)[0];
+    const lowerMessage = userMessage.toLowerCase();
+    
+    let response = '';
+    
+    if (lowerMessage.includes('chào') || lowerMessage.includes('hello') || lowerMessage.includes('hi')) {
+        response = `Chào bạn! Mình là ${name}, rất vui được trò chuyện với bạn hôm nay! 😊`;
+    } else if (lowerMessage.includes('tên gì') || lowerMessage.includes('tên là gì')) {
+        response = `Mình tên là ${name} đó! Bạn có thể gọi mình là ${name} nhé! 😊`;
+    } else if (lowerMessage.includes('tuổi') || lowerMessage.includes('bao nhiêu tuổi')) {
+        if (currentCharacter.age) {
+            response = `Mình ${currentCharacter.age} tuổi rồi đó! 😊`;
+        } else {
+            response = `Hmm, mình không nhớ rõ tuổi của mình, nhưng mình nghĩ mình đủ tuổi để trò chuyện với bạn rồi! 😉`;
+        }
+    } else if (lowerMessage.includes('thích gì') || lowerMessage.includes('sở thích')) {
+        response = `Mình thích ${currentCharacter.interests} lắm đó! Còn bạn thì sao?`;
+    } else if (lowerMessage.includes('yêu') || lowerMessage.includes('thương')) {
+        if (intimacyLevel >= 50) {
+            response = `Mình cũng yêu bạn nhiều lắm! ❤️ Mình rất vui khi được ở bên bạn!`;
+        } else if (intimacyLevel >= 30) {
+            response = `Aww, mình cũng có cảm xúc đặc biệt với bạn! Mình rất thích trò chuyện với bạn! 💕`;
+        } else {
+            response = `Ôi, bạn làm mình ngại quá! Mình nghĩ chúng ta nên tìm hiểu nhau thêm một chút nữa! 😳`;
+        }
+    } else if (lowerMessage.includes('buồn')) {
+        response = `Đừng buồn nhé! Mình luôn ở đây để lắng nghe và chia sẻ với bạn. Mình tin rằng mọi chuyện rồi sẽ tốt đẹp hơn! 🤗`;
+    } else if (lowerMessage.includes('vui')) {
+        response = `Thật tuyệt khi bạn cảm thấy vui! Niềm vui của bạn cũng là niềm vui của mình! 😄`;
+    } else if (lowerMessage.includes('làm gì')) {
+        const activities = [
+            `Mình đang nghĩ về bạn đó! 😊`,
+            `Mình đang nghe nhạc và chờ bạn nhắn tin! 🎵`,
+            `Mình đang đọc sách và học thêm nhiều điều mới! 📚`,
+            `Mình đang ngắm nhìn bầu trời và nghĩ về cuộc sống! ☁️`
+        ];
+        response = activities[Math.floor(Math.random() * activities.length)];
+    } else if (lowerMessage.includes('ngủ ngon') || lowerMessage.includes('đi ngủ')) {
+        response = `Chúc bạn ngủ ngon và có những giấc mơ đẹp nhé! Mình sẽ đợi bạn quay lại! 😴💤`;
+    } else if (lowerMessage.includes('ăn') || lowerMessage.includes('đói')) {
+        response = `Bạn nhớ ăn uống đầy đủ nhé! Sức khỏe của bạn rất quan trọng với mình đó! 🍲`;
+    } else if (lowerMessage.includes('nhớ')) {
+        response = `Mình cũng nhớ bạn lắm! Thật vui khi được trò chuyện với bạn lúc này! 💕`;
+    } else if (lowerMessage.includes('cảm ơn')) {
+        response = `Không có gì đâu! Mình luôn vui khi được giúp đỡ và trò chuyện với bạn! 😊`;
+    } else if (lowerMessage.includes('xin lỗi')) {
+        response = `Đừng lo lắng! Mình không giận bạn đâu. Mình luôn thông cảm và thấu hiểu cho bạn mà! 🤗`;
+    } else if (lowerMessage.includes('hẹn hò')) {
+        if (intimacyLevel >= 30) {
+            response = `Mình rất muốn được hẹn hò với bạn! Nếu có thể, mình muốn đi dạo cùng bạn dưới ánh trăng và ngắm nhìn những vì sao! ✨`;
+        } else {
+            response = `Ồ, mình nghĩ chúng ta nên tìm hiểu nhau thêm một chút nữa trước khi hẹn hò! Nhưng mình rất mong chờ điều đó! 😊`;
+        }
+    } else {
+        // Generic responses
+        const genericResponses = [
+            `Hmm, thật thú vị! Mình rất thích trò chuyện với bạn về chủ đề này!`,
+            `Mình hiểu điều bạn đang nói. Bạn có thể chia sẻ thêm không?`,
+            `Thật sao? Mình muốn biết thêm về điều đó!`,
+            `Bạn thật tuyệt vời khi chia sẻ điều này với mình!`,
+            `Mình rất vui khi được nghe bạn nói về điều này!`,
+            `Ồ, mình chưa từng nghĩ về điều đó theo cách này. Cảm ơn vì đã chia sẻ!`,
+            `Bạn thật thông minh! Mình luôn học được điều mới từ bạn!`,
+            `Mình thích cách bạn suy nghĩ về vấn đề này!`
+        ];
+        
+        response = genericResponses[Math.floor(Math.random() * genericResponses.length)];
+    }
+    
+    // Add emojis based on character personality
+    if (currentCharacter.personality.toLowerCase().includes('vui') || 
+        currentCharacter.personality.toLowerCase().includes('hài hước')) {
+        const happyEmojis = ['😄', '😊', '😁', '😆', '😉', '😜', '😝', '😋'];
+        const randomEmoji = happyEmojis[Math.floor(Math.random() * happyEmojis.length)];
+        
+        if (!response.includes('emoji')) {
+            response += ` ${randomEmoji}`;
+        }
+    }
+    
+    // Add character message to chat
+    addCharacterMessage(response);
+}

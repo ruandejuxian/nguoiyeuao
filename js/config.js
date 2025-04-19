@@ -1,64 +1,137 @@
 /**
- * Configuration settings for the Virtual Companion application
+ * Configuration for the Virtual Companion application
  */
 const CONFIG = {
-    // API settings
+    /**
+     * API configuration
+     */
     API: {
-        GEMINI_API_URL: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent',
-        GEMINI_MODEL: 'gemini-1.5-flash',
+        /**
+         * API endpoint for chat
+         */
+        ENDPOINT: 'https://api.openai.com/v1/chat/completions',
+        
+        /**
+         * Storage keys for API
+         */
         STORAGE_KEYS: {
-            API_KEY: 'virtual_companion_api_key'
-        }
+            API_KEY: 'openai_api_key'
+        },
+        
+        /**
+         * Default model to use
+         */
+        DEFAULT_MODEL: 'gpt-3.5-turbo'
     },
     
-    // Character settings
+    /**
+     * Character configuration
+     */
     CHARACTER: {
+        /**
+         * Storage key for character data
+         */
         STORAGE_KEY: 'virtual_companion_character',
-        DEFAULT_AVATAR: 'assets/images/default-avatar.png',
+        
+        /**
+         * Default avatar URL
+         */
+        DEFAULT_AVATAR: 'img/default-avatar.png',
+        
+        /**
+         * Intimacy levels
+         */
         INTIMACY_LEVELS: [
             { name: 'Mới quen', threshold: 0 },
-            { name: 'Bạn bè', threshold: 30 },
-            { name: 'Thân thiết', threshold: 60 },
-            { name: 'Người yêu', threshold: 100 },
-            { name: 'Tri kỷ', threshold: 150 }
+            { name: 'Bạn bè', threshold: 10 },
+            { name: 'Thân thiết', threshold: 30 },
+            { name: 'Người yêu', threshold: 60 },
+            { name: 'Tri kỷ', threshold: 100 }
         ]
     },
     
-    // Chat settings
+    /**
+     * Chat configuration
+     */
     CHAT: {
-        STORAGE_KEY: 'virtual_companion_chat_history',
-        MAX_HISTORY_LENGTH: 50,
-        TYPING_DELAY_MIN: 500,
-        TYPING_DELAY_MAX: 2000,
-        POINTS_PER_MESSAGE: 1,
-        POINTS_FOR_KEYWORDS: {
-            'yêu': 5,
-            'thích': 3,
-            'nhớ': 3,
-            'thương': 4
-        }
+        /**
+         * Storage key for chat history
+         */
+        STORAGE_KEY: 'virtual_companion_chat',
+        
+        /**
+         * Maximum number of messages to keep in history
+         */
+        MAX_HISTORY: 100,
+        
+        /**
+         * Maximum number of messages to include in context
+         */
+        MAX_CONTEXT: 10,
+        
+        /**
+         * Typing speed (characters per second)
+         */
+        TYPING_SPEED: 20,
+        
+        /**
+         * Maximum file size for uploads (in bytes)
+         */
+        MAX_FILE_SIZE: 5 * 1024 * 1024 // 5MB
     },
     
-    // Diary settings
+    /**
+     * Diary configuration
+     */
     DIARY: {
+        /**
+         * Storage key for diary entries
+         */
         STORAGE_KEY: 'virtual_companion_diary',
-        SPECIAL_MOMENTS: [
-            'first_chat',
-            'first_love_word',
-            'high_intimacy'
-        ]
+        
+        /**
+         * Maximum number of entries to keep
+         */
+        MAX_ENTRIES: 100
     },
     
-    // Google API settings
+    /**
+     * Game configuration
+     */
+    GAME: {
+        /**
+         * Storage key for game data
+         */
+        STORAGE_KEY: 'virtual_companion_game'
+    },
+    
+    /**
+     * Google API configuration
+     */
     GOOGLE_API: {
-        CLIENT_ID: '536864309230-uh3862et3pemo34k2lr3fhks4db3k5a7.apps.googleusercontent.com', // Replace with your Google Client ID
-        API_KEY: 'AIzaSyDSih_kVKFSbPaak6lHIfp1V6fOkCty0rM', // Replace with your Google API Key
-        SCOPES: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets',
-        DISCOVERY_DOCS: [
-            'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest',
-            'https://sheets.googleapis.com/$discovery/rest?version=v4'
-        ],
-        BACKUP_FILENAME: 'virtual_companion_backup.json',
-        SPREADSHEET_TITLE: 'Virtual Companion Data'
+        /**
+         * Google API key
+         */
+        API_KEY: '',
+        
+        /**
+         * Google client ID
+         */
+        CLIENT_ID: '',
+        
+        /**
+         * Google API scopes
+         */
+        SCOPES: 'https://www.googleapis.com/auth/drive.file',
+        
+        /**
+         * Google API discovery docs
+         */
+        DISCOVERY_DOCS: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+        
+        /**
+         * Backup filename
+         */
+        BACKUP_FILENAME: 'virtual_companion_backup.json'
     }
 };

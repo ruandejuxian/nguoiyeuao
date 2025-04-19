@@ -3,90 +3,111 @@
  */
 const Utils = {
     /**
-     * Shows a modal dialog
-     * @param {string} modalId - The ID of the modal to show
-     * @param {Object} options - Optional parameters
-     */
-    showModal: function(modalId, options = {}) {
-        const modal = document.getElementById(modalId);
-        
-        if (modalId === 'loading-modal' && options.message) {
-            document.getElementById('loading-message').textContent = options.message;
-        } else if (modalId === 'alert-modal') {
-            document.getElementById('alert-title').textContent = options.title || 'Thông báo';
-            document.getElementById('alert-message').textContent = options.message || '';
-        } else if (modalId === 'confirm-modal') {
-            document.getElementById('confirm-title').textContent = options.title || 'Xác nhận';
-            document.getElementById('confirm-message').textContent = options.message || '';
-            
-            // Set up confirm callback
-            const confirmBtn = document.getElementById('confirm-ok');
-            const cancelBtn = document.getElementById('confirm-cancel');
-            
-            // Remove existing event listeners
-            const newConfirmBtn = confirmBtn.cloneNode(true);
-            const newCancelBtn = cancelBtn.cloneNode(true);
-            confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
-            cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
-            
-            // Add new event listeners
-            if (options.onConfirm) {
-                newConfirmBtn.addEventListener('click', () => {
-                    this.hideModal(modalId);
-                    options.onConfirm();
-                });
-            } else {
-                newConfirmBtn.addEventListener('click', () => this.hideModal(modalId));
-            }
-            
-            if (options.onCancel) {
-                newCancelBtn.addEventListener('click', () => {
-                    this.hideModal(modalId);
-                    options.onCancel();
-                });
-            } else {
-                newCancelBtn.addEventListener('click', () => this.hideModal(modalId));
-            }
-        }
-        
-        modal.style.display = 'flex';
-    },
-    
-    /**
-     * Hides a modal dialog
-     * @param {string} modalId - The ID of the modal to hide
-     */
-    hideModal: function(modalId) {
-        const modal = document.getElementById(modalId);
-        modal.style.display = 'none';
-    },
-    
-    /**
-     * Formats a date to a readable string
-     * @param {Date} date - The date to format
-     * @returns {string} Formatted date string
-     */
-    formatDate: function(date) {
-        if (!date) date = new Date();
-        
-        const options = { 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        };
-        
-        return date.toLocaleDateString('vi-VN', options);
-    },
-    
-    /**
      * Generates a random ID
      * @returns {string} Random ID
      */
     generateId: function() {
-        return Math.random().toString(36).substring(2, 15) + 
-               Math.random().toString(36).substring(2, 15);
+        return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    },
+    
+    /**
+     * Formats a date for display
+     * @param {Date} date - Date to format
+     * @returns {string} Formatted date
+     */
+    formatDate: function(date) {
+        if (!(date instanceof Date)) {
+            date = new Date(date);
+        }
+        
+        const hours = date.getHours().toString().padStart(2, '0');
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const year = date.getFullYear();
+        
+        return `${hours}:${minutes}, ${day}/${month}/${year}`;
+    },
+    
+    /**
+     * Shows a modal
+     * @param {string} modalId - ID of modal to show
+     * @param {Object} options - Modal options
+     */
+    showModal: function(modalId, options = {}) {
+        const modal = document.getElementById(modalId);
+        if (!modal) return;
+        
+        // Set title and message if provided
+        if (options.title) {
+            const titleElement = modal.querySelector(`#${modalId.replace('modal', 'title')}`);
+            if (titleElement) {
+                titleElement.textContent = options.title;
+            }
+        }
+        
+        if (options.message) {
+            const messageElement = modal.querySelector(`#${modalId.replace('modal', 'message')}`);
+            if (messageElement) {
+                messageElement.textContent = options.message;
+            }
+        }
+        
+        // Set confirm callback if provided
+        if (options.onConfirm && modalId === 'confirm-modal') {
+            const confirmButton = document.getElementById('confirm-ok');
+            if (confirmButton) {
+                // Remove existing event listeners
+                const newButton = confirmButton.cloneNode(true);
+                confirmButton.parentNode.replaceChild(newButton, confirmButton);
+                
+                // Add new event listener
+                newButton.addEventListener('click', () => {
+                    options.onConfirm();
+                    this.hideModal(modalId);
+                });
+            }
+        }
+        
+        // Set close callback if provided
+        if (options.onClose) {
+            const closeButton = modal.querySelector(`#${modalId.replace('modal', 'close')}`);
+            if (closeButton) {
+                // Remove existing event listeners
+                const newButton = closeButton.cloneNode(true);
+                closeButton.parentNode.replaceChild(newButton, closeButton);
+                
+                // Add new event listener
+                newButton.addEventListener('click', () => {
+                    options.onClose();
+                    this.hideModal(modalId);
+                });
+            }
+        }
+        
+        // Show modal
+        modal.style.display = 'flex';
+        
+        // Add event listeners for close buttons
+        const closeButtons = modal.querySelectorAll('.modal-actions button');
+        closeButtons.forEach(button => {
+            if (!button.id || !button.id.includes('ok')) {
+                button.addEventListener('click', () => {
+                    this.hideModal(modalId);
+                });
+            }
+        });
+    },
+    
+    /**
+     * Hides a modal
+     * @param {string} modalId - ID of modal to hide
+     */
+    hideModal: function(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.style.display = 'none';
+        }
     },
     
     /**
@@ -95,81 +116,76 @@ const Utils = {
      * @returns {string} Escaped text
      */
     escapeHtml: function(text) {
-        const map = {
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#039;'
-        };
-        
-        return text.replace(/[&<>"']/g, m => map[m]);
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     },
     
     /**
-     * Detects URLs in text and converts them to clickable links
-     * @param {string} text - Text to process
-     * @returns {string} Text with clickable links
-     */
-    linkify: function(text) {
-        const urlRegex = /(https?:\/\/[^\s]+)/g;
-        return text.replace(urlRegex, url => `<a href="${url}" target="_blank">${url}</a>`);
-    },
-    
-    /**
-     * Gets a random number between min and max
-     * @param {number} min - Minimum value
-     * @param {number} max - Maximum value
-     * @returns {number} Random number
-     */
-    getRandomNumber: function(min, max) {
-        return Math.floor(Math.random() * (max - min + 1)) + min;
-    },
-    
-    /**
-     * Detects emotion keywords in text
-     * @param {string} text - Text to analyze
-     * @returns {string} Detected emotion or null
-     */
-    detectEmotion: function(text) {
-        const emotions = {
-            'happy': ['vui', 'cười', 'hạnh phúc', 'thích', 'yêu', 'tuyệt vời', 'tốt', 'haha', 'hihi'],
-            'sad': ['buồn', 'khóc', 'thất vọng', 'hic', 'huhu', 'đau lòng', 'nhớ'],
-            'angry': ['giận', 'tức', 'khó chịu', 'bực', 'ghét', 'phiền'],
-            'surprised': ['ngạc nhiên', 'bất ngờ', 'wow', 'ồ', 'thật sao', 'không thể tin'],
-            'love': ['yêu', 'thương', 'nhớ', 'thích', 'hôn', 'ôm', 'trái tim']
-        };
-        
-        text = text.toLowerCase();
-        
-        for (const [emotion, keywords] of Object.entries(emotions)) {
-            for (const keyword of keywords) {
-                if (text.includes(keyword)) {
-                    return emotion;
-                }
-            }
-        }
-        
-        return null;
-    },
-    
-    /**
-     * Debounce function to limit how often a function can be called
+     * Debounces a function
      * @param {Function} func - Function to debounce
      * @param {number} wait - Wait time in milliseconds
      * @returns {Function} Debounced function
      */
     debounce: function(func, wait) {
         let timeout;
-        
-        return function executedFunction(...args) {
-            const later = () => {
-                clearTimeout(timeout);
-                func(...args);
-            };
-            
+        return function(...args) {
+            const context = this;
             clearTimeout(timeout);
-            timeout = setTimeout(later, wait);
+            timeout = setTimeout(() => func.apply(context, args), wait);
         };
+    },
+    
+    /**
+     * Converts data URL to Blob
+     * @param {string} dataUrl - Data URL
+     * @returns {Blob} Blob
+     */
+    dataUrlToBlob: function(dataUrl) {
+        const arr = dataUrl.split(',');
+        const mime = arr[0].match(/:(.*?);/)[1];
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        
+        while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+        }
+        
+        return new Blob([u8arr], { type: mime });
+    },
+    
+    /**
+     * Gets file extension from file name
+     * @param {string} filename - File name
+     * @returns {string} File extension
+     */
+    getFileExtension: function(filename) {
+        return filename.slice((filename.lastIndexOf('.') - 1 >>> 0) + 2);
+    },
+    
+    /**
+     * Checks if a string is a valid URL
+     * @param {string} str - String to check
+     * @returns {boolean} Whether string is a valid URL
+     */
+    isValidUrl: function(str) {
+        try {
+            new URL(str);
+            return true;
+        } catch (e) {
+            return false;
+        }
+    },
+    
+    /**
+     * Truncates text to a specified length
+     * @param {string} text - Text to truncate
+     * @param {number} length - Maximum length
+     * @returns {string} Truncated text
+     */
+    truncateText: function(text, length) {
+        if (text.length <= length) return text;
+        return text.substring(0, length) + '...';
     }
 };

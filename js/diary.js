@@ -1,5 +1,5 @@
 /**
- * Diary functionality for the Virtual Companion application
+ * Diary management for the Virtual Companion application
  */
 const Diary = {
     /**
@@ -11,22 +11,18 @@ const Diary = {
      * Initializes diary from storage
      */
     init: function() {
-        // Try to load diary entries from storage
+        // Load entries from storage
         const savedEntries = Storage.load(CONFIG.DIARY.STORAGE_KEY);
         
-        if (savedEntries && Array.isArray(savedEntries)) {
+        if (savedEntries) {
             this.entries = savedEntries;
-            this.renderEntries();
-            return true;
+            this.updateUI();
         }
-        
-        this.entries = [];
-        return false;
     },
     
     /**
      * Adds a new diary entry
-     * @param {Object} entry - Diary entry data
+     * @param {Object} entry - Entry data
      * @returns {Object} Created entry
      */
     addEntry: function(entry) {
@@ -39,86 +35,72 @@ const Diary = {
         };
         
         // Add to entries
-        this.entries.push(newEntry);
+        this.entries.unshift(newEntry);
         
-        // Sort entries by timestamp (newest first)
-        this.entries.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        // Limit entries
+        if (this.entries.length > CONFIG.DIARY.MAX_ENTRIES) {
+            this.entries = this.entries.slice(0, CONFIG.DIARY.MAX_ENTRIES);
+        }
         
         // Save to storage
         Storage.save(CONFIG.DIARY.STORAGE_KEY, this.entries);
         
-        // Render entries
-        this.renderEntries();
+        // Update UI
+        this.updateUI();
         
         return newEntry;
     },
     
     /**
      * Removes a diary entry
-     * @param {string} entryId - ID of entry to remove
+     * @param {string} id - Entry ID
      * @returns {boolean} Success status
      */
-    removeEntry: function(entryId) {
-        const initialLength = this.entries.length;
-        this.entries = this.entries.filter(entry => entry.id !== entryId);
+    removeEntry: function(id) {
+        const index = this.entries.findIndex(entry => entry.id === id);
         
-        if (this.entries.length < initialLength) {
-            // Save to storage
-            Storage.save(CONFIG.DIARY.STORAGE_KEY, this.entries);
-            
-            // Render entries
-            this.renderEntries();
-            
-            return true;
-        }
+        if (index === -1) return false;
         
-        return false;
-    },
-    
-    /**
-     * Clears all diary entries
-     * @returns {boolean} Success status
-     */
-    clearEntries: function() {
-        this.entries = [];
-        Storage.remove(CONFIG.DIARY.STORAGE_KEY);
-        this.renderEntries();
+        // Remove entry
+        this.entries.splice(index, 1);
+        
+        // Save to storage
+        Storage.save(CONFIG.DIARY.STORAGE_KEY, this.entries);
+        
+        // Update UI
+        this.updateUI();
+        
         return true;
     },
     
     /**
-     * Renders all diary entries
+     * Updates the diary UI
      */
-    renderEntries: function() {
+    updateUI: function() {
         const diaryEntries = document.getElementById('diary-entries');
+        
+        if (!diaryEntries) return;
         
         if (this.entries.length === 0) {
             diaryEntries.innerHTML = `
                 <div class="empty-diary">
-                    <p>Chưa có kỷ niệm nào được lưu lại.</p>
-                    <p>Hãy trò chuyện nhiều hơn với nhân vật của bạn!</p>
+                    Chưa có bản ghi nhật ký nào. Hãy trò chuyện với nhân vật của bạn để tạo kỷ niệm!
                 </div>
             `;
             return;
         }
         
-        // Clear existing entries
+        // Clear entries
         diaryEntries.innerHTML = '';
         
-        // Render each entry
+        // Add entries
         this.entries.forEach(entry => {
             const entryElement = document.createElement('div');
-            entryElement.classList.add('diary-entry');
-            entryElement.dataset.id = entry.id;
-            
-            // Format timestamp
-            const timestamp = new Date(entry.timestamp);
-            const formattedDate = Utils.formatDate(timestamp);
-            
+            entryElement.className = 'diary-entry';
             entryElement.innerHTML = `
-                <div class="diary-date">${formattedDate}</div>
-                <h3 class="diary-title">${entry.title}</h3>
-                <p class="diary-content">${entry.content}</p>
+                <div class="diary-date">${Utils.formatDate(entry.timestamp)}</div>
+                <div class="diary-title">${entry.title}</div>
+                <div class="diary-content">${entry.content}</div>
             `;
             
             diaryEntries.appendChild(entryElement);

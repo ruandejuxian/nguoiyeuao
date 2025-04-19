@@ -25,6 +25,9 @@ function initApp() {
     // Initialize Chat
     const chatLoaded = Chat.init();
     
+    // Initialize Chat Features
+    Chat.initChatFeatures();
+    
     // Initialize Diary
     Diary.init();
     

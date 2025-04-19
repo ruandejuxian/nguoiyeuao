@@ -13,14 +13,23 @@ const GoogleAPI = {
     gapiClient: null,
     
     /**
+     * Google Identity Services client
+     */
+    tokenClient: null,
+    
+    /**
      * Initializes Google API
      */
     init: function() {
         // Load the Google API client library
         this.loadGapiScript()
             .then(() => {
+                // Load the Google Identity Services library
+                return this.loadGisScript();
+            })
+            .then(() => {
                 // Initialize the Google API client
-                gapi.load('client:auth2', this.initClient.bind(this));
+                gapi.load('client', this.initClient.bind(this));
             })
             .catch(error => {
                 console.error('Error loading Google API:', error);
@@ -60,20 +69,46 @@ const GoogleAPI = {
     },
     
     /**
+     * Loads the Google Identity Services script
+     * @returns {Promise} Promise that resolves when script is loaded
+     */
+    loadGisScript: function() {
+        return new Promise((resolve, reject) => {
+            // Check if script is already loaded
+            if (window.google && window.google.accounts) {
+                resolve();
+                return;
+            }
+            
+            // Create script element
+            const script = document.createElement('script');
+            script.src = 'https://accounts.google.com/gsi/client';
+            script.async = true;
+            script.defer = true;
+            
+            script.onload = () => {
+                resolve();
+            };
+            
+            script.onerror = () => {
+                reject(new Error('Failed to load Google Identity Services script'));
+            };
+            
+            // Add script to document
+            document.body.appendChild(script);
+        });
+    },
+    
+    /**
      * Initializes the Google API client
      */
     initClient: function() {
         gapi.client.init({
             apiKey: CONFIG.GOOGLE_API.API_KEY,
-            clientId: CONFIG.GOOGLE_API.CLIENT_ID,
             discoveryDocs: CONFIG.GOOGLE_API.DISCOVERY_DOCS,
-            scope: CONFIG.GOOGLE_API.SCOPES
         }).then(() => {
-            // Listen for sign-in state changes
-            gapi.auth2.getAuthInstance().isSignedIn.listen(this.updateSigninStatus.bind(this));
-            
-            // Handle the initial sign-in state
-            this.updateSigninStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
+            // Initialize token client
+            this.initTokenClient();
             
             // Set up sign-in button
             document.getElementById('google-auth-btn').addEventListener('click', this.handleAuthClick.bind(this));
@@ -83,10 +118,47 @@ const GoogleAPI = {
             document.getElementById('restore-data').addEventListener('click', this.restoreData.bind(this));
             
             this.gapiClient = gapi.client;
+            
+            // Check if user is already signed in
+            this.checkSignInStatus();
         }).catch(error => {
             console.error('Error initializing Google API client:', error);
             this.updateAuthStatus('Lỗi khởi tạo Google API');
         });
+    },
+    
+    /**
+     * Initializes the Google Identity Services token client
+     */
+    initTokenClient: function() {
+        this.tokenClient = google.accounts.oauth2.initTokenClient({
+            client_id: CONFIG.GOOGLE_API.CLIENT_ID,
+            scope: CONFIG.GOOGLE_API.SCOPES,
+            callback: this.handleTokenResponse.bind(this)
+        });
+    },
+    
+    /**
+     * Handles token response from Google Identity Services
+     * @param {Object} response - Token response
+     */
+    handleTokenResponse: function(response) {
+        if (response.error) {
+            console.error('Error getting token:', response.error);
+            this.updateSigninStatus(false);
+            return;
+        }
+        
+        // User is signed in
+        this.updateSigninStatus(true);
+    },
+    
+    /**
+     * Checks if user is already signed in
+     */
+    checkSignInStatus: function() {
+        const token = gapi.client.getToken();
+        this.updateSigninStatus(!!token);
     },
     
     /**
@@ -129,10 +201,16 @@ const GoogleAPI = {
     handleAuthClick: function() {
         if (this.isAuthenticated) {
             // Sign out
-            gapi.auth2.getAuthInstance().signOut();
+            const token = gapi.client.getToken();
+            if (token) {
+                google.accounts.oauth2.revoke(token.access_token, () => {
+                    gapi.client.setToken(null);
+                    this.updateSigninStatus(false);
+                });
+            }
         } else {
             // Sign in
-            gapi.auth2.getAuthInstance().signIn();
+            this.tokenClient.requestAccessToken();
         }
     },
     
@@ -318,7 +396,7 @@ const GoogleAPI = {
         form.append('metadata', new Blob([JSON.stringify(metadata)], {type: 'application/json'}));
         form.append('file', file);
         
-        const accessToken = gapi.auth.getToken().access_token;
+        const accessToken = gapi.client.getToken().access_token;
         
         const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
             method: 'POST',
@@ -340,7 +418,7 @@ const GoogleAPI = {
     updateDriveFile: async function(fileId, content) {
         const file = new Blob([content], {type: 'application/json'});
         
-        const accessToken = gapi.auth.getToken().access_token;
+        const accessToken = gapi.client.getToken().access_token;
         
         await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
             method: 'PATCH',
@@ -358,7 +436,7 @@ const GoogleAPI = {
      * @returns {string} File content
      */
     readDriveFile: async function(fileId) {
-        const accessToken = gapi.auth.getToken().access_token;
+        const accessToken = gapi.client.getToken().access_token;
         
         const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
             headers: {

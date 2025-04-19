@@ -8,6 +8,11 @@ const Chat = {
     history: [],
     
     /**
+     * Current image to send
+     */
+    currentImage: null,
+    
+    /**
      * Initializes chat from storage
      */
     init: function() {
@@ -22,6 +27,156 @@ const Chat = {
         
         this.history = [];
         return false;
+    },
+    
+    /**
+     * Initializes chat features
+     */
+    initChatFeatures: function() {
+        // Initialize emoji picker
+        this.initEmojiPicker();
+        
+        // Initialize file upload
+        this.initFileUpload();
+    },
+    
+    /**
+     * Initializes emoji picker
+     */
+    initEmojiPicker: function() {
+        const emojiButton = document.getElementById('emoji-button');
+        const emojiPickerContainer = document.getElementById('emoji-picker-container');
+        const messageInput = document.getElementById('message-input');
+        
+        if (emojiButton && emojiPickerContainer) {
+            // Create emoji picker
+            const picker = new EmojiMart.Picker({
+                onSelect: emoji => {
+                    // Insert emoji at cursor position
+                    const cursorPos = messageInput.selectionStart;
+                    const text = messageInput.value;
+                    const newText = text.slice(0, cursorPos) + emoji.native + text.slice(cursorPos);
+                    
+                    messageInput.value = newText;
+                    messageInput.focus();
+                    messageInput.selectionStart = cursorPos + emoji.native.length;
+                    messageInput.selectionEnd = cursorPos + emoji.native.length;
+                    
+                    // Trigger input event to resize textarea
+                    const event = new Event('input', { bubbles: true });
+                    messageInput.dispatchEvent(event);
+                    
+                    // Hide picker after selection
+                    emojiPickerContainer.style.display = 'none';
+                },
+                i18n: {
+                    search: 'Tìm kiếm',
+                    categories: {
+                        search: 'Kết quả tìm kiếm',
+                        recent: 'Gần đây',
+                        smileys: 'Mặt cười',
+                        people: 'Người',
+                        nature: 'Thiên nhiên',
+                        foods: 'Thức ăn',
+                        activity: 'Hoạt động',
+                        places: 'Địa điểm',
+                        objects: 'Đồ vật',
+                        symbols: 'Biểu tượng',
+                        flags: 'Cờ'
+                    }
+                }
+            });
+            
+            emojiPickerContainer.appendChild(picker);
+            
+            // Toggle emoji picker on button click
+            emojiButton.addEventListener('click', () => {
+                if (emojiPickerContainer.style.display === 'block') {
+                    emojiPickerContainer.style.display = 'none';
+                } else {
+                    emojiPickerContainer.style.display = 'block';
+                }
+            });
+            
+            // Close emoji picker when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!emojiPickerContainer.contains(e.target) && e.target !== emojiButton) {
+                    emojiPickerContainer.style.display = 'none';
+                }
+            });
+        }
+    },
+    
+    /**
+     * Initializes file upload
+     */
+    initFileUpload: function() {
+        const fileButton = document.getElementById('file-button');
+        const fileInput = document.getElementById('file-input');
+        const imagePreviewModal = document.getElementById('image-preview-modal');
+        const imagePreview = document.getElementById('image-preview');
+        const cancelImageBtn = document.getElementById('cancel-image');
+        const sendImageBtn = document.getElementById('send-image');
+        
+        if (fileButton && fileInput) {
+            // Open file dialog on button click
+            fileButton.addEventListener('click', () => {
+                fileInput.click();
+            });
+            
+            // Handle file selection
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                
+                if (file) {
+                    // Check if file is an image
+                    if (!file.type.startsWith('image/')) {
+                        Utils.showModal('alert-modal', {
+                            title: 'Loại file không hỗ trợ',
+                            message: 'Vui lòng chọn file hình ảnh (jpg, png, gif, etc.)'
+                        });
+                        return;
+                    }
+                    
+                    // Check file size (max 5MB)
+                    if (file.size > 5 * 1024 * 1024) {
+                        Utils.showModal('alert-modal', {
+                            title: 'File quá lớn',
+                            message: 'Kích thước file không được vượt quá 5MB'
+                        });
+                        return;
+                    }
+                    
+                    // Show image preview
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        imagePreview.src = e.target.result;
+                        this.currentImage = e.target.result;
+                        
+                        // Show preview modal
+                        imagePreviewModal.style.display = 'flex';
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+            
+            // Cancel image upload
+            cancelImageBtn.addEventListener('click', () => {
+                imagePreviewModal.style.display = 'none';
+                fileInput.value = '';
+                this.currentImage = null;
+            });
+            
+            // Send image
+            sendImageBtn.addEventListener('click', () => {
+                if (this.currentImage) {
+                    this.sendImage(this.currentImage);
+                    imagePreviewModal.style.display = 'none';
+                    fileInput.value = '';
+                    this.currentImage = null;
+                }
+            });
+        }
     },
     
     /**
@@ -102,6 +257,77 @@ const Chat = {
     },
     
     /**
+     * Sends an image to the chat
+     * @param {string} imageData - Base64 encoded image data
+     */
+    sendImage: async function(imageData) {
+        if (!Character.current) return;
+        
+        // Add image message to history
+        this.addMessage('user', imageData, 'image');
+        
+        // Update character stats
+        Character.current.stats.messagesSent++;
+        Storage.save(CONFIG.CHARACTER.STORAGE_KEY, Character.current);
+        
+        // Show typing indicator
+        this.showTypingIndicator();
+        
+        // Generate AI response
+        try {
+            const apiKey = Storage.load(CONFIG.API.STORAGE_KEYS.API_KEY);
+            
+            if (!apiKey) {
+                this.hideTypingIndicator();
+                Utils.showModal('alert-modal', {
+                    title: 'API Key không tồn tại',
+                    message: 'Vui lòng thêm Gemini API Key trong phần Cài đặt để sử dụng chức năng chat.'
+                });
+                return;
+            }
+            
+            // Generate prompt for AI
+            const prompt = Character.generatePrompt("Tôi đã gửi cho bạn một hình ảnh. Hãy phản hồi về hình ảnh này theo tính cách của bạn.", this.history.slice(-10));
+            
+            // Random delay to simulate typing
+            const typingDelay = Utils.getRandomNumber(
+                CONFIG.CHAT.TYPING_DELAY_MIN, 
+                CONFIG.CHAT.TYPING_DELAY_MAX
+            );
+            
+            // Wait for typing delay
+            await new Promise(resolve => setTimeout(resolve, typingDelay));
+            
+            // Call Gemini API
+            const response = await this.callGeminiAPI(apiKey, prompt);
+            
+            // Hide typing indicator
+            this.hideTypingIndicator();
+            
+            if (response) {
+                // Add AI response to history
+                this.addMessage('companion', response);
+                
+                // Update character stats
+                Character.current.stats.messagesReceived++;
+                Storage.save(CONFIG.CHARACTER.STORAGE_KEY, Character.current);
+                
+                // Update intimacy
+                Character.updateIntimacy(CONFIG.CHAT.POINTS_PER_MESSAGE);
+                
+                // Update avatar emotion based on response
+                this.updateAvatarEmotion(response);
+            }
+        } catch (error) {
+            console.error('Error generating response:', error);
+            this.hideTypingIndicator();
+            
+            // Add error message
+            this.addMessage('system', 'Có lỗi xảy ra khi tạo phản hồi. Vui lòng thử lại sau.');
+        }
+    },
+    
+    /**
      * Calls the Gemini API to generate a response
      * @param {string} apiKey - Gemini API key
      * @param {string} prompt - Prompt for the AI
@@ -153,12 +379,14 @@ const Chat = {
      * Adds a message to the chat history
      * @param {string} sender - 'user', 'companion', or 'system'
      * @param {string} content - Message content
+     * @param {string} type - Message type ('text' or 'image')
      */
-    addMessage: function(sender, content) {
+    addMessage: function(sender, content, type = 'text') {
         const message = {
             id: Utils.generateId(),
             sender: sender,
             content: content,
+            type: type,
             timestamp: new Date().toISOString()
         };
         
@@ -209,21 +437,72 @@ const Chat = {
         const messageElement = document.createElement('div');
         messageElement.classList.add('message', message.sender);
         
-        // Format message content with links
-        const formattedContent = Utils.linkify(Utils.escapeHtml(message.content));
-        
         // Format timestamp
         const timestamp = new Date(message.timestamp);
         const formattedTime = Utils.formatDate(timestamp);
         
-        // Set message HTML
-        messageElement.innerHTML = `
-            <div class="message-content">${formattedContent}</div>
-            <span class="message-time">${formattedTime}</span>
-        `;
+        // Set message HTML based on type
+        if (message.type === 'text') {
+            // Format message content with links and emojis
+            const formattedContent = this.formatMessageContent(message.content);
+            
+            messageElement.innerHTML = `
+                <div class="message-content">${formattedContent}</div>
+                <span class="message-time">${formattedTime}</span>
+            `;
+        } else if (message.type === 'image') {
+            messageElement.innerHTML = `
+                <div class="message-content">
+                    <img src="${message.content}" alt="Hình ảnh" class="message-image">
+                </div>
+                <span class="message-time">${formattedTime}</span>
+            `;
+            
+            // Add click event to open image in full size
+            const imageElement = messageElement.querySelector('.message-image');
+            if (imageElement) {
+                imageElement.addEventListener('click', () => {
+                    const modal = document.createElement('div');
+                    modal.classList.add('modal');
+                    modal.style.display = 'flex';
+                    
+                    modal.innerHTML = `
+                        <div class="modal-content" style="max-width: 90%; text-align: center;">
+                            <img src="${message.content}" alt="Hình ảnh" style="max-width: 100%; max-height: 80vh;">
+                            <button class="primary-btn" style="margin-top: 15px;">Đóng</button>
+                        </div>
+                    `;
+                    
+                    document.body.appendChild(modal);
+                    
+                    const closeButton = modal.querySelector('button');
+                    closeButton.addEventListener('click', () => {
+                        document.body.removeChild(modal);
+                    });
+                });
+            }
+        }
         
         // Add to chat container
         chatMessages.appendChild(messageElement);
+    },
+    
+    /**
+     * Formats message content with links and emojis
+     * @param {string} content - Message content
+     * @returns {string} Formatted content
+     */
+    formatMessageContent: function(content) {
+        // Escape HTML
+        let formattedContent = Utils.escapeHtml(content);
+        
+        // Convert URLs to links
+        formattedContent = Utils.linkify(formattedContent);
+        
+        // Detect and highlight emojis
+        formattedContent = formattedContent.replace(/(\p{Emoji}+)/gu, '<span class="emoji">$1</span>');
+        
+        return formattedContent;
     },
     
     /**

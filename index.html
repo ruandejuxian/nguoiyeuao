@@ -3,49 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Người Yêu Ảo - Tạo và Chat với Người Yêu Ảo của Bạn</title>
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <title>Người Yêu Ảo</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/emoji-picker-element@1.18.3/index.css">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" href="img/favicon.ico" type="image/x-icon">
 </head>
 <body>
     <div class="app-container">
-        <!-- Sidebar Navigation -->
+        <!-- Sidebar -->
         <div class="sidebar">
             <div class="logo">
                 <h1>Người Yêu Ảo</h1>
             </div>
             <nav class="nav-menu">
                 <ul>
-                    <li class="active" data-tab="chat-tab"><i class="fas fa-comment"></i> Chat</li>
-                    <li data-tab="create-tab"><i class="fas fa-user-plus"></i> Tạo Nhân Vật</li>
-                    <li data-tab="diary-tab"><i class="fas fa-book"></i> Nhật Ký</li>
-                    <li data-tab="game-tab"><i class="fas fa-gamepad"></i> Mini Game</li>
-                    <li data-tab="settings-tab"><i class="fas fa-cog"></i> Cài Đặt</li>
+                    <li id="chat-tab" class="active"><i class="fas fa-comment"></i> Chat</li>
+                    <li id="create-tab"><i class="fas fa-user-plus"></i> Tạo Nhân Vật</li>
+                    <li id="diary-tab"><i class="fas fa-book"></i> Nhật Ký</li>
+                    <li id="game-tab"><i class="fas fa-gamepad"></i> Mini Game</li>
+                    <li id="settings-tab"><i class="fas fa-cog"></i> Cài Đặt</li>
                 </ul>
             </nav>
             <div class="connection-status">
-                <div class="status-indicator offline"></div>
-                <span class="status-text">Chưa kết nối API</span>
+                <div class="status-indicator offline" id="api-status"></div>
+                <span>Chưa kết nối API</span>
             </div>
         </div>
 
-        <!-- Main Content Area -->
+        <!-- Main Content -->
         <div class="main-content">
             <!-- Chat Tab -->
-            <div class="tab-content active" id="chat-tab">
+            <div id="chat-content" class="tab-content active">
                 <div class="chat-container">
                     <div class="chat-header">
                         <div class="companion-info">
                             <div class="companion-avatar">
                                 <div class="avatar-container">
-                                    <img src="assets/images/default-avatar.png" alt="Avatar" id="companion-avatar-img">
+                                    <img id="companion-avatar-img" src="img/default-avatar.png" alt="Avatar">
                                 </div>
                                 <div class="intimacy-level">
                                     <div class="level-indicator">
-                                        <div class="level-progress" style="width: 10%;"></div>
+                                        <div class="level-progress" style="width: 0%"></div>
                                     </div>
-                                    <span class="level-text">Mức độ thân thiết: Mới quen</span>
+                                    <div class="level-text">Mức độ thân thiết: Mới quen</div>
                                 </div>
                             </div>
                             <div class="companion-details">
@@ -54,73 +56,81 @@
                             </div>
                         </div>
                     </div>
-                    
-                    <div class="chat-messages" id="chat-messages">
+                    <div id="chat-messages" class="chat-messages">
                         <div class="welcome-message">
                             <h3>Chào mừng đến với Người Yêu Ảo!</h3>
                             <p>Hãy tạo nhân vật của bạn để bắt đầu trò chuyện.</p>
                             <button class="create-character-btn" data-tab="create-tab">Tạo Nhân Vật Ngay</button>
                         </div>
                     </div>
-                    
                     <div class="chat-input">
+                        <div class="chat-input-actions">
+                            <button id="emoji-button" class="input-action-btn" title="Chọn emoji">
+                                <i class="far fa-smile"></i>
+                            </button>
+                            <button id="file-button" class="input-action-btn" title="Gửi hình ảnh">
+                                <i class="far fa-image"></i>
+                            </button>
+                            <input type="file" id="file-input" accept="image/*" style="display: none;">
+                        </div>
                         <textarea id="message-input" placeholder="Nhập tin nhắn..." disabled></textarea>
-                        <button id="send-button" disabled><i class="fas fa-paper-plane"></i></button>
+                        <button id="send-button" disabled>
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
                     </div>
+                    <div id="emoji-picker-container" class="emoji-picker-container"></div>
                 </div>
             </div>
 
             <!-- Create Character Tab -->
-            <div class="tab-content" id="create-tab">
+            <div id="create-content" class="tab-content">
                 <div class="create-character">
-                    <h2>Tạo Nhân Vật Của Bạn</h2>
+                    <h2>Tạo Nhân Vật</h2>
                     <form id="character-form">
                         <div class="form-group">
-                            <label for="char-name">Tên:</label>
-                            <input type="text" id="char-name" placeholder="Nhập tên nhân vật..." required>
+                            <label for="character-name">Tên:</label>
+                            <input type="text" id="character-name" required>
                         </div>
-                        
                         <div class="form-group">
-                            <label for="char-gender">Giới tính:</label>
-                            <select id="char-gender">
+                            <label for="character-gender">Giới tính:</label>
+                            <select id="character-gender" required>
                                 <option value="female">Nữ</option>
                                 <option value="male">Nam</option>
                             </select>
                         </div>
-                        
                         <div class="form-group">
-                            <label for="char-age">Tuổi:</label>
-                            <input type="number" id="char-age" min="18" max="35" value="22">
+                            <label for="character-age">Tuổi:</label>
+                            <input type="number" id="character-age" min="18" max="100" required>
                         </div>
-                        
                         <div class="form-group">
-                            <label for="char-personality">Tính cách:</label>
-                            <textarea id="char-personality" placeholder="Mô tả tính cách (vd: vui tính, dịu dàng, tsundere)..." required></textarea>
+                            <label for="character-birthday">Ngày sinh (tùy chọn):</label>
+                            <input type="date" id="character-birthday">
                         </div>
-                        
                         <div class="form-group">
-                            <label for="char-interests">Sở thích:</label>
-                            <textarea id="char-interests" placeholder="Mô tả sở thích (vd: K-pop, phim, game)..."></textarea>
+                            <label for="character-personality">Tính cách:</label>
+                            <textarea id="character-personality" placeholder="Ví dụ: vui vẻ, hòa đồng, thông minh..." required></textarea>
                         </div>
-                        
                         <div class="form-group">
-                            <label for="char-avatar">Chọn avatar:</label>
+                            <label for="character-interests">Sở thích:</label>
+                            <textarea id="character-interests" placeholder="Ví dụ: đọc sách, nghe nhạc, nấu ăn..." required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Chọn avatar:</label>
                             <div class="avatar-selection">
-                                <div class="avatar-option selected" data-avatar="avatar-1.png">
-                                    <img src="assets/images/avatar-1.png" alt="Avatar 1">
+                                <div class="avatar-option selected" data-avatar="img/avatar1.png">
+                                    <img src="img/avatar1.png" alt="Avatar 1">
                                 </div>
-                                <div class="avatar-option" data-avatar="avatar-2.png">
-                                    <img src="assets/images/avatar-2.png" alt="Avatar 2">
+                                <div class="avatar-option" data-avatar="img/avatar2.png">
+                                    <img src="img/avatar2.png" alt="Avatar 2">
                                 </div>
-                                <div class="avatar-option" data-avatar="avatar-3.png">
-                                    <img src="assets/images/avatar-3.png" alt="Avatar 3">
+                                <div class="avatar-option" data-avatar="img/avatar3.png">
+                                    <img src="img/avatar3.png" alt="Avatar 3">
                                 </div>
-                                <div class="avatar-option" data-avatar="avatar-4.png">
-                                    <img src="assets/images/avatar-4.png" alt="Avatar 4">
+                                <div class="avatar-option" data-avatar="img/avatar4.png">
+                                    <img src="img/avatar4.png" alt="Avatar 4">
                                 </div>
                             </div>
                         </div>
-                        
                         <div class="form-actions">
                             <button type="submit" class="primary-btn">Tạo Nhân Vật</button>
                         </div>
@@ -129,100 +139,88 @@
             </div>
 
             <!-- Diary Tab -->
-            <div class="tab-content" id="diary-tab">
+            <div id="diary-content" class="tab-content">
                 <div class="diary-container">
-                    <h2>Nhật Ký Tình Yêu</h2>
-                    <div class="diary-entries" id="diary-entries">
+                    <h2>Nhật Ký</h2>
+                    <div id="diary-entries" class="diary-entries">
                         <div class="empty-diary">
-                            <p>Chưa có kỷ niệm nào được lưu lại.</p>
-                            <p>Hãy trò chuyện nhiều hơn với nhân vật của bạn!</p>
+                            Chưa có bản ghi nhật ký nào. Hãy trò chuyện với nhân vật của bạn để tạo kỷ niệm!
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Mini Game Tab -->
-            <div class="tab-content" id="game-tab">
+            <!-- Game Tab -->
+            <div id="game-content" class="tab-content">
                 <div class="game-container">
                     <h2>Mini Game</h2>
                     <div class="game-selection">
-                        <div class="game-card" id="guess-preference-game">
-                            <h3>Đoán Sở Thích</h3>
-                            <p>Đoán xem người yêu ảo của bạn thích gì?</p>
+                        <div class="game-card" data-game="quiz">
+                            <h3>Trắc Nghiệm</h3>
+                            <p>Trả lời câu hỏi để hiểu nhân vật của bạn hơn và tăng mức độ thân thiết.</p>
                             <button class="game-start-btn">Bắt Đầu</button>
                         </div>
-                        <div class="game-card" id="memory-game">
+                        <div class="game-card" data-game="memory">
                             <h3>Trò Chơi Trí Nhớ</h3>
-                            <p>Kiểm tra trí nhớ của bạn về người yêu ảo</p>
+                            <p>Lật các thẻ bài để tìm cặp giống nhau. Hoàn thành để nhận phần thưởng.</p>
                             <button class="game-start-btn">Bắt Đầu</button>
                         </div>
                     </div>
-                    <div class="game-area" id="game-area">
-                        <!-- Game content will be loaded here -->
-                    </div>
+                    <div id="game-area" class="game-area"></div>
                 </div>
             </div>
 
             <!-- Settings Tab -->
-            <div class="tab-content" id="settings-tab">
+            <div id="settings-content" class="tab-content">
                 <div class="settings-container">
                     <h2>Cài Đặt</h2>
-                    
                     <div class="settings-section">
-                        <h3>API Gemini</h3>
+                        <h3>API Key</h3>
                         <div class="form-group">
-                            <label for="api-key">API Key:</label>
-                            <input type="password" id="api-key" placeholder="Nhập API key của Gemini...">
+                            <label for="api-key">OpenAI API Key:</label>
+                            <input type="password" id="api-key" placeholder="sk-...">
                         </div>
                         <button id="save-api-key" class="primary-btn">Lưu API Key</button>
-                        <p class="settings-note">Lưu ý: API key sẽ được lưu trữ cục bộ trên trình duyệt của bạn.</p>
+                        <p class="settings-note">Lưu ý: API Key của bạn được lưu trữ cục bộ và không được gửi đến bất kỳ máy chủ nào khác ngoài OpenAI.</p>
                     </div>
-                    
                     <div class="settings-section">
-                        <h3>Đồng Bộ Dữ Liệu</h3>
+                        <h3>Google Drive</h3>
                         <div class="google-auth">
-                            <button id="google-auth-btn" class="primary-btn">
+                            <button id="google-auth-btn" class="secondary-btn">
                                 <i class="fab fa-google"></i> Đăng nhập với Google
                             </button>
                             <div id="google-auth-status" class="auth-status">Chưa đăng nhập</div>
                         </div>
                         <div class="sync-actions">
-                            <button id="backup-data" class="secondary-btn" disabled>Sao lưu dữ liệu</button>
-                            <button id="restore-data" class="secondary-btn" disabled>Khôi phục dữ liệu</button>
+                            <button id="backup-data" class="primary-btn" disabled>Sao lưu dữ liệu</button>
+                            <button id="restore-data" class="primary-btn" disabled>Khôi phục dữ liệu</button>
                         </div>
                     </div>
-                    
                     <div class="settings-section">
-                        <h3>Quản lý dữ liệu</h3>
-                        <button id="clear-chat" class="danger-btn">Xóa lịch sử chat</button>
-                        <button id="reset-character" class="danger-btn">Xóa nhân vật</button>
-                        <button id="reset-all" class="danger-btn">Xóa tất cả dữ liệu</button>
+                        <h3>Nhân Vật</h3>
+                        <button id="edit-character" class="secondary-btn">Chỉnh sửa nhân vật</button>
+                        <button id="delete-character" class="danger-btn">Xóa nhân vật</button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal Dialogs -->
-    <div class="modal" id="loading-modal">
-        <div class="modal-content">
-            <div class="loader"></div>
-            <p id="loading-message">Đang xử lý...</p>
-        </div>
-    </div>
-
-    <div class="modal" id="alert-modal">
+    <!-- Modals -->
+    <div id="alert-modal" class="modal">
         <div class="modal-content">
             <h3 id="alert-title">Thông báo</h3>
-            <p id="alert-message"></p>
-            <button id="alert-close" class="primary-btn">Đóng</button>
+            <p id="alert-message">Nội dung thông báo</p>
+            <div class="modal-actions">
+                <button id="alert-close" class="primary-btn">Đóng</button>
+            </div>
         </div>
     </div>
 
-    <div class="modal" id="confirm-modal">
+    <div id="confirm-modal" class="modal">
         <div class="modal-content">
             <h3 id="confirm-title">Xác nhận</h3>
-            <p id="confirm-message"></p>
+            <p id="confirm-message">Bạn có chắc chắn muốn thực hiện hành động này?</p>
             <div class="modal-actions">
                 <button id="confirm-cancel" class="secondary-btn">Hủy</button>
                 <button id="confirm-ok" class="primary-btn">Đồng ý</button>
@@ -230,7 +228,37 @@
         </div>
     </div>
 
+    <div id="loading-modal" class="modal">
+        <div class="modal-content">
+            <div class="loader"></div>
+            <p id="loading-message">Đang xử lý...</p>
+        </div>
+    </div>
+
+    <div id="image-preview-modal" class="modal">
+        <div class="modal-content">
+            <h3>Xem trước hình ảnh</h3>
+            <div class="image-preview-container">
+                <img id="image-preview" src="" alt="Preview">
+            </div>
+            <div class="modal-actions">
+                <button id="cancel-image" class="secondary-btn">Hủy</button>
+                <button id="send-image" class="primary-btn">Gửi</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="image-view-modal" class="modal">
+        <div class="modal-content">
+            <img id="image-view" src="" alt="Image" style="max-width: 100%;">
+            <div class="modal-actions">
+                <button id="close-image-view" class="primary-btn">Đóng</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/emoji-picker-element@1.18.3/index.js"></script>
     <script src="js/config.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/storage.js"></script>
@@ -239,9 +267,8 @@
     <script src="js/diary.js"></script>
     <script src="js/game.js"></script>
     <script src="js/google-api.js"></script>
-    <script src="js/avatar.js"></script>
-    <script src="js/additional-features.js"></script>
     <script src="js/ui.js"></script>
+    <script src="js/additional-features.js"></script>
     <script src="js/main.js"></script>
 </body>
 </html>

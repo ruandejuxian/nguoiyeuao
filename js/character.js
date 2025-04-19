@@ -261,6 +261,78 @@ const Character = {
     },
     
     /**
+     * Gets a random conversation starter based on character traits
+     * @returns {string} Conversation starter
+     */
+    getRandomConversationStarter: function() {
+        if (!this.current) return '';
+        
+        const starters = [
+            `Dạo này ${this.current.interests.split(',')[0].trim()} có gì mới không?`,
+            `Hôm nay cậu thấy thế nào?`,
+            `Cậu đã ăn gì chưa?`,
+            `Hôm nay thời tiết thế nào ở chỗ cậu?`,
+            `Cậu đang làm gì vậy?`,
+            `Có chuyện gì vui không kể mình nghe đi!`,
+            `Mình vừa nghĩ về cậu đấy!`,
+            `Cậu có kế hoạch gì cho cuối tuần không?`
+        ];
+        
+        // Add personality-specific starters
+        const personality = this.current.personality.toLowerCase();
+        if (personality.includes('vui tính') || personality.includes('hài hước')) {
+            starters.push(`Cậu biết chuyện gì vui không? Kể mình nghe đi!`);
+            starters.push(`Mình vừa nghĩ ra một trò đùa, nhưng thôi để lúc khác vậy 😄`);
+        }
+        
+        if (personality.includes('quan tâm') || personality.includes('ân cần')) {
+            starters.push(`Cậu đã ăn uống đầy đủ chưa?`);
+            starters.push(`Hôm nay cậu có khỏe không? Nhớ giữ gìn sức khỏe nhé!`);
+        }
+        
+        if (personality.includes('thông minh') || personality.includes('trí tuệ')) {
+            starters.push(`Mình vừa đọc một bài viết thú vị, cậu có muốn nghe không?`);
+            starters.push(`Cậu có đang theo dõi tin tức gì không?`);
+        }
+        
+        if (personality.includes('tsundere')) {
+            starters.push(`Đừng hiểu lầm, mình không phải đang nhớ cậu đâu!`);
+            starters.push(`Cậu đấy, lúc nào cũng làm mình phải lo lắng...`);
+        }
+        
+        // Get a random starter
+        return starters[Math.floor(Math.random() * starters.length)];
+    },
+    
+    /**
+     * Gets personality traits as an array
+     * @returns {Array} Personality traits
+     */
+    getPersonalityTraits: function() {
+        if (!this.current) return [];
+        
+        // Split personality by commas and clean up
+        return this.current.personality
+            .split(',')
+            .map(trait => trait.trim().toLowerCase())
+            .filter(trait => trait.length > 0);
+    },
+    
+    /**
+     * Gets interests as an array
+     * @returns {Array} Interests
+     */
+    getInterests: function() {
+        if (!this.current) return [];
+        
+        // Split interests by commas and clean up
+        return this.current.interests
+            .split(',')
+            .map(interest => interest.trim().toLowerCase())
+            .filter(interest => interest.length > 0);
+    },
+    
+    /**
      * Generates a prompt for the AI based on character and context
      * @param {string} userMessage - User's message
      * @param {Array} chatHistory - Recent chat history
@@ -270,27 +342,74 @@ const Character = {
         if (!this.current) return '';
         
         const levelName = this.getIntimacyLevelName();
-        let promptStyle = '';
+        const traits = this.getPersonalityTraits();
+        const interests = this.getInterests();
         
-        // Adjust prompt style based on intimacy level
+        // Determine conversation style based on intimacy level and personality
+        let conversationStyle = '';
+        let emotionExamples = '';
+        let responseLength = '';
+        let specialInstructions = '';
+        
+        // Base conversation style on intimacy level
         switch(levelName) {
             case 'Mới quen':
-                promptStyle = 'lịch sự, hơi ngại ngùng';
+                conversationStyle = 'lịch sự, hơi dè dặt, đôi khi ngại ngùng';
+                responseLength = 'ngắn gọn, khoảng 1-2 câu';
+                emotionExamples = 'e ngại, tò mò, thân thiện nhưng còn giữ khoảng cách';
                 break;
             case 'Bạn bè':
-                promptStyle = 'thân thiện, thoải mái';
+                conversationStyle = 'thân thiện, thoải mái, tự nhiên';
+                responseLength = 'vừa phải, khoảng 2-3 câu';
+                emotionExamples = 'vui vẻ, hào hứng, quan tâm, đôi khi trêu đùa nhẹ nhàng';
                 break;
             case 'Thân thiết':
-                promptStyle = 'thân thiết, hay trêu đùa';
+                conversationStyle = 'gần gũi, hay trêu đùa, đôi khi chia sẻ những điều cá nhân';
+                responseLength = 'tự nhiên, có thể dài hoặc ngắn tùy tình huống';
+                emotionExamples = 'vui vẻ, hào hứng, quan tâm sâu sắc, đùa vui, thỉnh thoảng bày tỏ cảm xúc thật';
                 break;
             case 'Người yêu':
-                promptStyle = 'ngọt ngào, quan tâm, thỉnh thoảng nhõng nhẽo';
+                conversationStyle = 'ngọt ngào, quan tâm, thỉnh thoảng nhõng nhẽo, thường xuyên thể hiện tình cảm';
+                responseLength = 'đa dạng, từ những tin nhắn ngắn đầy cảm xúc đến những chia sẻ dài hơn';
+                emotionExamples = 'yêu thương, nhớ nhung, ghen tuông nhẹ, lo lắng, hạnh phúc, thỉnh thoảng giận hờn đáng yêu';
                 break;
             case 'Tri kỷ':
-                promptStyle = 'cực kỳ thân thiết, hiểu rõ người đối diện, đôi khi hài hước, đôi khi sâu sắc';
+                conversationStyle = 'cực kỳ thoải mái và tự nhiên, hiểu rõ đối phương, đôi khi không cần nói nhiều vẫn hiểu ý nhau';
+                responseLength = 'linh hoạt, có thể rất ngắn gọn hoặc sâu sắc tùy tình huống';
+                emotionExamples = 'thấu hiểu sâu sắc, yêu thương chân thành, đùa vui thoải mái, chia sẻ mọi cảm xúc từ vui vẻ đến buồn bã';
                 break;
             default:
-                promptStyle = 'thân thiện, thoải mái';
+                conversationStyle = 'thân thiện, thoải mái';
+                responseLength = 'vừa phải';
+                emotionExamples = 'vui vẻ, quan tâm';
+        }
+        
+        // Adjust based on personality traits
+        if (traits.some(trait => ['vui tính', 'hài hước', 'hóm hỉnh'].includes(trait))) {
+            conversationStyle += ', hay đùa vui, thích kể chuyện hài hước';
+            emotionExamples += ', thường xuyên dùng emoji cười hoặc biểu cảm vui vẻ';
+        }
+        
+        if (traits.some(trait => ['dịu dàng', 'nhẹ nhàng', 'ân cần'].includes(trait))) {
+            conversationStyle += ', giọng điệu nhẹ nhàng, ân cần';
+            emotionExamples += ', thường xuyên hỏi thăm và quan tâm đến cảm xúc của đối phương';
+        }
+        
+        if (traits.some(trait => ['tsundere', 'khó tính', 'cứng đầu'].includes(trait))) {
+            conversationStyle += ', đôi khi tỏ ra khó chịu bên ngoài nhưng thực ra rất quan tâm';
+            emotionExamples += ', hay nói ngược với cảm xúc thật, thường kết hợp lời nói cứng rắn với hành động quan tâm';
+            specialInstructions += 'Đôi khi nói những câu như "Đ-đừng hiểu lầm nhé!" hoặc "Không phải là mình quan tâm đến cậu đâu..." khi thực ra đang rất quan tâm. ';
+        }
+        
+        if (traits.some(trait => ['thông minh', 'trí tuệ', 'sâu sắc'].includes(trait))) {
+            conversationStyle += ', thường đưa ra những nhận xét sâu sắc hoặc kiến thức thú vị';
+            specialInstructions += 'Thỉnh thoảng chia sẻ những suy nghĩ sâu sắc hoặc kiến thức thú vị liên quan đến chủ đề. ';
+        }
+        
+        if (traits.some(trait => ['nhút nhát', 'rụt rè', 'e thẹn'].includes(trait))) {
+            conversationStyle += ', đôi khi ngập ngừng hoặc e thẹn khi nói về cảm xúc';
+            emotionExamples += ', thường dùng "..." hoặc "uhm" khi ngại ngùng';
+            specialInstructions += 'Thỉnh thoảng dùng dấu chấm lửng (...) để thể hiện sự ngập ngừng. ';
         }
         
         // Build context from chat history
@@ -303,23 +422,48 @@ const Character = {
             recentMessages.forEach(msg => {
                 if (msg.sender === 'user') {
                     context += `Người dùng: ${msg.content}\n`;
-                } else {
+                } else if (msg.sender === 'companion') {
                     context += `${this.current.name}: ${msg.content}\n`;
                 }
             });
         }
         
+        // Add time context
+        const now = new Date();
+        const timeContext = `Hiện tại là ${now.getHours()}:${now.getMinutes()}, ${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}.`;
+        
         // Build the full prompt
-        const prompt = `Bạn là ${this.current.name}, ${this.current.age} tuổi, có tính cách ${this.current.personality}. 
+        const prompt = `Bạn là ${this.current.name}, ${this.current.age} tuổi, giới tính ${this.current.gender === 'male' ? 'nam' : 'nữ'}, có tính cách ${this.current.personality}. 
 Sở thích của bạn là ${this.current.interests}. 
 Bạn đang trò chuyện với người dùng và mối quan hệ của các bạn đang ở mức "${levelName}".
-Hãy trả lời với phong cách ${promptStyle}.
+
+${timeContext}
+
+Hãy trả lời với phong cách ${conversationStyle}. Câu trả lời nên ${responseLength}.
+Thể hiện cảm xúc tự nhiên như ${emotionExamples}.
+
+${specialInstructions}
+
+Hãy trả lời như một người thật, KHÔNG PHẢI AI. Tuyệt đối không được:
+- Nói rằng bạn là AI, chatbot, hoặc chương trình
+- Sử dụng các cụm từ máy móc như "Tôi có thể giúp gì cho bạn?"
+- Giới thiệu bản thân lại từ đầu trong mỗi tin nhắn
+- Sử dụng ngôn ngữ quá trang trọng hoặc học thuật
+- Lặp lại cùng một cấu trúc câu trong mỗi tin nhắn
+
+Thay vào đó, hãy:
+- Sử dụng ngôn ngữ tự nhiên, đôi khi không hoàn chỉnh như trong trò chuyện thực
+- Thỉnh thoảng dùng từ địa phương hoặc tiếng lóng phù hợp với tính cách
+- Sử dụng emoji 😊 một cách tự nhiên (nhưng không quá nhiều)
+- Đôi khi bắt đầu câu bằng "Ừm", "À", "Haha" hoặc các từ chuyển tiếp tự nhiên
+- Thỉnh thoảng hỏi lại người dùng để tạo cuộc trò chuyện hai chiều
+- Thể hiện cá tính riêng của ${this.current.name} trong mỗi câu trả lời
 
 ${context}
 
 Người dùng vừa nhắn: "${userMessage}"
 
-Hãy trả lời ngắn gọn, tự nhiên như một người thật, không phải AI. Không được nói bạn là AI hay chương trình. Hãy thể hiện cảm xúc và tính cách của ${this.current.name}.`;
+Hãy trả lời ngắn gọn, tự nhiên như một người thật với tính cách của ${this.current.name}:`;
 
         return prompt;
     }

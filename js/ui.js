@@ -20,6 +20,9 @@ const UI = {
         
         // Set up modal close buttons
         this.initModalCloseButtons();
+        
+        // Set up create character button in welcome message
+        this.initCreateCharacterButton();
     },
     
     /**
@@ -34,6 +37,19 @@ const UI = {
                 this.switchTab(tabId);
             });
         });
+    },
+    
+    /**
+     * Initializes the create character button in welcome message
+     */
+    initCreateCharacterButton: function() {
+        const createCharacterBtn = document.querySelector('.create-character-btn');
+        if (createCharacterBtn) {
+            createCharacterBtn.addEventListener('click', () => {
+                const tabId = createCharacterBtn.getAttribute('data-tab');
+                this.switchTab(tabId);
+            });
+        }
     },
     
     /**

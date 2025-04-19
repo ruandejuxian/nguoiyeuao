@@ -8,13 +8,30 @@ const Game = {
     currentGame: null,
     
     /**
+     * Game data storage
+     */
+    gameData: null,
+    
+    /**
      * Initializes game module
      */
     init: function() {
+        console.log('Initializing game module...');
+        
         // Add event listeners to game cards
         const gameCards = document.querySelectorAll('.game-card');
         
         gameCards.forEach(card => {
+            const gameStartBtn = card.querySelector('.game-start-btn');
+            if (gameStartBtn) {
+                gameStartBtn.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Prevent event bubbling
+                    const gameType = card.getAttribute('data-game');
+                    this.startGame(gameType);
+                });
+            }
+            
+            // Also add click event to the entire card for better UX
             card.addEventListener('click', () => {
                 const gameType = card.getAttribute('data-game');
                 this.startGame(gameType);
@@ -32,6 +49,8 @@ const Game = {
                 lastPlayed: null
             };
         }
+        
+        console.log('Game module initialized');
     },
     
     /**
@@ -39,10 +58,17 @@ const Game = {
      * @param {string} gameType - Type of game to start
      */
     startGame: function(gameType) {
+        console.log('Starting game:', gameType);
+        
         this.currentGame = gameType;
         
         // Show game area
         const gameArea = document.getElementById('game-area');
+        if (!gameArea) {
+            console.error('Game area element not found');
+            return;
+        }
+        
         gameArea.style.display = 'block';
         
         // Initialize game based on type
@@ -67,7 +93,11 @@ const Game = {
      * Initializes quiz game
      */
     initQuizGame: function() {
+        console.log('Initializing quiz game...');
+        
+        // Check if character exists
         if (!Character.current) {
+            console.log('No character found, showing alert');
             Utils.showModal('alert-modal', {
                 title: 'Không thể bắt đầu trò chơi',
                 message: 'Bạn cần tạo nhân vật trước khi chơi trò chơi này.'
@@ -103,9 +133,14 @@ const Game = {
         this.showQuizQuestion();
         
         // Add event listener to next button
-        document.getElementById('quiz-next').addEventListener('click', () => {
-            this.nextQuizQuestion();
-        });
+        const nextButton = document.getElementById('quiz-next');
+        if (nextButton) {
+            nextButton.addEventListener('click', () => {
+                this.nextQuizQuestion();
+            });
+        }
+        
+        console.log('Quiz game initialized with', questions.length, 'questions');
     },
     
     /**
@@ -117,10 +152,11 @@ const Game = {
         const questions = [];
         
         // Basic questions
+        const interests = character.interests.split(',').map(interest => interest.trim());
         questions.push({
             question: `${character.name} thích làm gì trong thời gian rảnh?`,
             options: [
-                character.interests.split(',')[0].trim(),
+                interests[0] || 'Đọc sách',
                 'Ngủ cả ngày',
                 'Xem phim kinh dị',
                 'Đi leo núi'
@@ -131,10 +167,10 @@ const Game = {
         questions.push({
             question: `${character.name} bao nhiêu tuổi?`,
             options: [
-                character.age - 2,
-                character.age,
-                character.age + 3,
-                character.age + 5
+                parseInt(character.age) - 2,
+                parseInt(character.age),
+                parseInt(character.age) + 3,
+                parseInt(character.age) + 5
             ],
             correctIndex: 1
         });
@@ -146,7 +182,7 @@ const Game = {
             questions.push({
                 question: `Đâu là tính cách của ${character.name}?`,
                 options: [
-                    traits[0],
+                    traits[0] || 'Vui vẻ',
                     'Lười biếng',
                     'Hay cáu gắt',
                     'Thích kiểm soát'
@@ -204,13 +240,24 @@ const Game = {
         const question = state.questions[state.currentQuestion];
         
         // Update progress
-        document.getElementById('quiz-progress').textContent = `Câu hỏi ${state.currentQuestion + 1}/${state.questions.length}`;
+        const progressElement = document.getElementById('quiz-progress');
+        if (progressElement) {
+            progressElement.textContent = `Câu hỏi ${state.currentQuestion + 1}/${state.questions.length}`;
+        }
         
         // Show question
-        document.getElementById('quiz-question').textContent = question.question;
+        const questionElement = document.getElementById('quiz-question');
+        if (questionElement) {
+            questionElement.textContent = question.question;
+        }
         
         // Show options
         const optionsContainer = document.getElementById('quiz-options');
+        if (!optionsContainer) {
+            console.error('Quiz options container not found');
+            return;
+        }
+        
         optionsContainer.innerHTML = '';
         
         question.options.forEach((option, index) => {
@@ -229,7 +276,10 @@ const Game = {
                 optionElement.classList.add('selected');
                 
                 // Enable next button
-                document.getElementById('quiz-next').disabled = false;
+                const nextButton = document.getElementById('quiz-next');
+                if (nextButton) {
+                    nextButton.disabled = false;
+                }
                 
                 // Save answer
                 state.answers[state.currentQuestion] = index;
@@ -244,7 +294,10 @@ const Game = {
         });
         
         // Disable next button until an option is selected
-        document.getElementById('quiz-next').disabled = true;
+        const nextButton = document.getElementById('quiz-next');
+        if (nextButton) {
+            nextButton.disabled = true;
+        }
     },
     
     /**
@@ -274,6 +327,11 @@ const Game = {
     showQuizResults: function() {
         const state = this.quizState;
         const gameArea = document.getElementById('game-area');
+        
+        if (!gameArea) {
+            console.error('Game area element not found');
+            return;
+        }
         
         // Calculate score percentage
         const scorePercent = Math.round((state.score / state.questions.length) * 100);
@@ -322,29 +380,46 @@ const Game = {
         `;
         
         // Add event listeners
-        document.getElementById('quiz-restart').addEventListener('click', () => {
-            this.startGame('quiz');
-        });
+        const restartButton = document.getElementById('quiz-restart');
+        if (restartButton) {
+            restartButton.addEventListener('click', () => {
+                this.startGame('quiz');
+            });
+        }
         
-        document.getElementById('quiz-close').addEventListener('click', () => {
-            gameArea.style.display = 'none';
-        });
+        const closeButton = document.getElementById('quiz-close');
+        if (closeButton) {
+            closeButton.addEventListener('click', () => {
+                gameArea.style.display = 'none';
+            });
+        }
         
         // Add quiz completion to diary
-        Diary.addEntry({
-            type: 'game',
-            title: 'Hoàn thành trò chơi trắc nghiệm',
-            content: `Bạn đã hoàn thành trò chơi trắc nghiệm với điểm số ${scorePercent}% và nhận được ${intimacyPoints} điểm thân thiết.`,
-            timestamp: new Date().toISOString()
-        });
+        if (typeof Diary !== 'undefined' && Diary.addEntry) {
+            Diary.addEntry({
+                type: 'game',
+                title: 'Hoàn thành trò chơi trắc nghiệm',
+                content: `Bạn đã hoàn thành trò chơi trắc nghiệm với điểm số ${scorePercent}% và nhận được ${intimacyPoints} điểm thân thiết.`,
+                timestamp: new Date().toISOString()
+            });
+        }
+        
+        console.log('Quiz game completed with score:', scorePercent + '%');
     },
     
     /**
      * Initializes memory game
      */
     initMemoryGame: function() {
+        console.log('Initializing memory game...');
+        
         // Create memory game UI
         const gameArea = document.getElementById('game-area');
+        if (!gameArea) {
+            console.error('Game area element not found');
+            return;
+        }
+        
         gameArea.innerHTML = `
             <h3>Trò Chơi Trí Nhớ</h3>
             <p>Lật các thẻ bài để tìm cặp giống nhau. Hoàn thành để nhận phần thưởng.</p>
@@ -352,17 +427,197 @@ const Game = {
                 <div class="memory-moves">Lượt: <span id="memory-moves">0</span></div>
                 <div class="memory-timer">Thời gian: <span id="memory-timer">0</span>s</div>
             </div>
-            <div id="memory-board"></div>
+            <div id="memory-board" class="memory-board"></div>
             <button id="memory-restart" class="secondary-btn">Chơi Lại</button>
         `;
+        
+        // Add memory game styles
+        this.addMemoryGameStyles();
         
         // Initialize memory game
         this.initMemoryBoard();
         
         // Add event listener to restart button
-        document.getElementById('memory-restart').addEventListener('click', () => {
-            this.initMemoryBoard();
-        });
+        const restartButton = document.getElementById('memory-restart');
+        if (restartButton) {
+            restartButton.addEventListener('click', () => {
+                this.initMemoryBoard();
+            });
+        }
+        
+        console.log('Memory game initialized');
+    },
+    
+    /**
+     * Adds memory game styles
+     */
+    addMemoryGameStyles: function() {
+        // Check if styles already exist
+        if (document.getElementById('memory-game-styles')) {
+            return;
+        }
+        
+        // Create style element
+        const style = document.createElement('style');
+        style.id = 'memory-game-styles';
+        style.textContent = `
+            .memory-board {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 15px;
+                margin: 20px auto;
+                max-width: 500px;
+            }
+            
+            .memory-card {
+                aspect-ratio: 1;
+                perspective: 1000px;
+                cursor: pointer;
+                border-radius: 10px;
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            }
+            
+            .memory-card-inner {
+                position: relative;
+                width: 100%;
+                height: 100%;
+                transform-style: preserve-3d;
+                transition: transform 0.6s;
+                border-radius: 10px;
+                overflow: hidden;
+            }
+            
+            .memory-card.flipped .memory-card-inner {
+                transform: rotateY(180deg);
+            }
+            
+            .memory-card-front, .memory-card-back {
+                position: absolute;
+                width: 100%;
+                height: 100%;
+                backface-visibility: hidden;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 10px;
+            }
+            
+            .memory-card-front {
+                background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+                color: white;
+                font-size: 1.5rem;
+            }
+            
+            .memory-card-front::after {
+                content: '?';
+                font-size: 2rem;
+                font-weight: bold;
+            }
+            
+            .memory-card-back {
+                background-color: white;
+                transform: rotateY(180deg);
+                font-size: 2.5rem;
+            }
+            
+            .memory-card.matched .memory-card-back {
+                background-color: #e6f7e6;
+                animation: pulse 1s;
+            }
+            
+            @keyframes pulse {
+                0% { transform: scale(1) rotateY(180deg); }
+                50% { transform: scale(1.1) rotateY(180deg); }
+                100% { transform: scale(1) rotateY(180deg); }
+            }
+            
+            .memory-stats {
+                display: flex;
+                justify-content: space-around;
+                margin: 15px 0;
+                font-weight: 500;
+                background-color: rgba(255, 255, 255, 0.8);
+                padding: 10px;
+                border-radius: 10px;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            }
+            
+            .memory-moves, .memory-timer {
+                font-size: 1.1rem;
+            }
+            
+            .memory-moves span, .memory-timer span {
+                font-weight: bold;
+                color: var(--primary-color);
+            }
+            
+            .quiz-option {
+                padding: 15px;
+                margin: 10px 0;
+                background-color: #f8f8f8;
+                border-radius: 8px;
+                cursor: pointer;
+                transition: all 0.3s;
+                border: 2px solid transparent;
+            }
+            
+            .quiz-option:hover {
+                background-color: #f0f0f0;
+                transform: translateY(-2px);
+            }
+            
+            .quiz-option.selected {
+                background-color: #e6f7e6;
+                border-color: var(--primary-color);
+                font-weight: 500;
+            }
+            
+            #quiz-question {
+                font-size: 1.2rem;
+                font-weight: 500;
+                margin: 20px 0;
+                line-height: 1.5;
+            }
+            
+            #quiz-progress {
+                font-size: 0.9rem;
+                color: #666;
+                margin-bottom: 10px;
+            }
+            
+            .quiz-results {
+                text-align: center;
+                padding: 20px;
+            }
+            
+            .quiz-score {
+                margin: 20px 0;
+            }
+            
+            .score-circle {
+                width: 120px;
+                height: 120px;
+                border-radius: 50%;
+                background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+                color: white;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 2rem;
+                font-weight: bold;
+                margin: 0 auto 15px;
+            }
+            
+            .quiz-message {
+                font-size: 1.2rem;
+                font-weight: 500;
+                margin: 15px 0;
+                color: var(--primary-color);
+            }
+        `;
+        
+        // Add style to document
+        document.head.appendChild(style);
     },
     
     /**
@@ -395,6 +650,11 @@ const Game = {
         
         // Create board
         const board = document.getElementById('memory-board');
+        if (!board) {
+            console.error('Memory board element not found');
+            return;
+        }
+        
         board.innerHTML = '';
         
         cards.forEach((card, index) => {
@@ -416,76 +676,22 @@ const Game = {
         });
         
         // Reset stats
-        document.getElementById('memory-moves').textContent = '0';
-        document.getElementById('memory-timer').textContent = '0';
+        const movesElement = document.getElementById('memory-moves');
+        if (movesElement) {
+            movesElement.textContent = '0';
+        }
+        
+        const timerElement = document.getElementById('memory-timer');
+        if (timerElement) {
+            timerElement.textContent = '0';
+        }
         
         // Clear timer
         if (this.memoryState.timerInterval) {
             clearInterval(this.memoryState.timerInterval);
         }
         
-        // Add memory game styles
-        const style = document.createElement('style');
-        style.textContent = `
-            #memory-board {
-                display: grid;
-                grid-template-columns: repeat(4, 1fr);
-                gap: 10px;
-                margin: 20px 0;
-            }
-            
-            .memory-card {
-                aspect-ratio: 1;
-                perspective: 1000px;
-                cursor: pointer;
-            }
-            
-            .memory-card-inner {
-                position: relative;
-                width: 100%;
-                height: 100%;
-                transform-style: preserve-3d;
-                transition: transform 0.5s;
-            }
-            
-            .memory-card.flipped .memory-card-inner {
-                transform: rotateY(180deg);
-            }
-            
-            .memory-card-front, .memory-card-back {
-                position: absolute;
-                width: 100%;
-                height: 100%;
-                backface-visibility: hidden;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                border-radius: 8px;
-                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            }
-            
-            .memory-card-front {
-                background-color: var(--primary-color);
-            }
-            
-            .memory-card-back {
-                background-color: white;
-                transform: rotateY(180deg);
-                font-size: 2rem;
-            }
-            
-            .memory-stats {
-                display: flex;
-                justify-content: space-between;
-                margin-bottom: 15px;
-                font-weight: 500;
-            }
-            
-            .memory-card.matched .memory-card-back {
-                background-color: #e6f7e6;
-            }
-        `;
-        document.head.appendChild(style);
+        console.log('Memory board initialized with', cards.length, 'cards');
     },
     
     /**
@@ -495,29 +701,39 @@ const Game = {
     flipCard: function(index) {
         const state = this.memoryState;
         
-        // Ignore if game ended or card is already flipped or matched
-        if (state.gameEnded || state.flipped.includes(index) || state.matched.includes(index)) {
+        // Ignore if game ended or card already flipped/matched
+        if (state.gameEnded || 
+            state.flipped.includes(index) || 
+            state.matched.includes(index)) {
             return;
         }
         
-        // Start game on first flip
+        // Start game timer on first flip
         if (!state.gameStarted) {
             state.gameStarted = true;
-            state.timerInterval = setInterval(() => {
-                state.timer++;
-                document.getElementById('memory-timer').textContent = state.timer;
-            }, 1000);
+            this.startMemoryTimer();
+        }
+        
+        // Ignore if two cards already flipped
+        if (state.flipped.length >= 2) {
+            return;
         }
         
         // Flip card
         const card = document.querySelector(`.memory-card[data-index="${index}"]`);
+        if (!card) return;
+        
         card.classList.add('flipped');
         state.flipped.push(index);
         
-        // Check for match if two cards are flipped
+        // Check for match if two cards flipped
         if (state.flipped.length === 2) {
             state.moves++;
-            document.getElementById('memory-moves').textContent = state.moves;
+            
+            const movesElement = document.getElementById('memory-moves');
+            if (movesElement) {
+                movesElement.textContent = state.moves;
+            }
             
             const [index1, index2] = state.flipped;
             
@@ -530,12 +746,12 @@ const Game = {
                 document.querySelector(`.memory-card[data-index="${index1}"]`).classList.add('matched');
                 document.querySelector(`.memory-card[data-index="${index2}"]`).classList.add('matched');
                 
-                // Check if all cards are matched
+                // Check if game completed
                 if (state.matched.length === state.cards.length) {
                     this.endMemoryGame();
                 }
             } else {
-                // No match
+                // No match, flip back after delay
                 setTimeout(() => {
                     document.querySelector(`.memory-card[data-index="${index1}"]`).classList.remove('flipped');
                     document.querySelector(`.memory-card[data-index="${index2}"]`).classList.remove('flipped');
@@ -546,37 +762,62 @@ const Game = {
     },
     
     /**
+     * Starts memory game timer
+     */
+    startMemoryTimer: function() {
+        const state = this.memoryState;
+        
+        // Clear existing timer
+        if (state.timerInterval) {
+            clearInterval(state.timerInterval);
+        }
+        
+        const startTime = Date.now();
+        
+        state.timerInterval = setInterval(() => {
+            state.timer = Math.floor((Date.now() - startTime) / 1000);
+            
+            const timerElement = document.getElementById('memory-timer');
+            if (timerElement) {
+                timerElement.textContent = state.timer;
+            }
+        }, 1000);
+    },
+    
+    /**
      * Ends memory game
      */
     endMemoryGame: function() {
         const state = this.memoryState;
         
         // Stop timer
-        clearInterval(state.timerInterval);
+        if (state.timerInterval) {
+            clearInterval(state.timerInterval);
+        }
+        
         state.gameEnded = true;
         
         // Calculate score based on moves and time
-        const maxMoves = state.cards.length * 2;
-        const maxTime = 120;
+        const baseScore = 1000;
+        const movesPenalty = state.moves * 10;
+        const timePenalty = state.timer * 5;
+        const score = Math.max(100, baseScore - movesPenalty - timePenalty);
         
-        const moveScore = Math.max(0, 100 - Math.floor((state.moves / maxMoves) * 100));
-        const timeScore = Math.max(0, 100 - Math.floor((state.timer / maxTime) * 100));
-        
-        const totalScore = Math.floor((moveScore + timeScore) / 2);
-        
-        // Determine intimacy points based on score
+        // Determine intimacy points
         let intimacyPoints = 0;
         
-        if (totalScore >= 80) {
+        if (score >= 800) {
             intimacyPoints = 5;
-        } else if (totalScore >= 60) {
+        } else if (score >= 600) {
             intimacyPoints = 3;
-        } else if (totalScore >= 40) {
+        } else if (score >= 400) {
+            intimacyPoints = 2;
+        } else {
             intimacyPoints = 1;
         }
         
-        // Update intimacy if character exists
-        if (Character.current) {
+        // Update intimacy
+        if (typeof Character !== 'undefined' && Character.updateIntimacy) {
             Character.updateIntimacy(intimacyPoints);
         }
         
@@ -586,13 +827,99 @@ const Game = {
         
         // Show results
         setTimeout(() => {
-            Utils.showModal('alert-modal', {
-                title: 'Chúc mừng!',
-                message: `Bạn đã hoàn thành trò chơi trí nhớ với ${state.moves} lượt trong ${state.timer} giây! Điểm số: ${totalScore}/100. ${Character.current ? `Mức độ thân thiết +${intimacyPoints}` : ''}`
-            });
+            const gameArea = document.getElementById('game-area');
+            if (!gameArea) return;
             
-            // Add to diary if character exists
-            if (Character.current) {
+            gameArea.innerHTML = `
+                <h3>Kết Quả Trò Chơi Trí Nhớ</h3>
+                <div class="memory-results">
+                    <div class="memory-stats-final">
+                        <div class="stat-item">
+                            <span class="stat-label">Số lượt:</span>
+                            <span class="stat-value">${state.moves}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Thời gian:</span>
+                            <span class="stat-value">${state.timer}s</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Điểm số:</span>
+                            <span class="stat-value">${score}</span>
+                        </div>
+                    </div>
+                    <p class="memory-message">Chúc mừng! Bạn đã hoàn thành trò chơi trí nhớ.</p>
+                    <p>Mức độ thân thiết +${intimacyPoints}</p>
+                    <div class="memory-actions">
+                        <button id="memory-restart-end" class="primary-btn">Chơi Lại</button>
+                        <button id="memory-close" class="secondary-btn">Đóng</button>
+                    </div>
+                </div>
+            `;
+            
+            // Add styles for results
+            const style = document.createElement('style');
+            style.textContent = `
+                .memory-results {
+                    text-align: center;
+                    padding: 20px;
+                }
+                
+                .memory-stats-final {
+                    display: flex;
+                    justify-content: space-around;
+                    margin: 20px 0;
+                    background-color: #f8f8f8;
+                    padding: 15px;
+                    border-radius: 10px;
+                }
+                
+                .stat-item {
+                    display: flex;
+                    flex-direction: column;
+                }
+                
+                .stat-label {
+                    font-size: 0.9rem;
+                    color: #666;
+                }
+                
+                .stat-value {
+                    font-size: 1.5rem;
+                    font-weight: bold;
+                    color: var(--primary-color);
+                }
+                
+                .memory-message {
+                    font-size: 1.2rem;
+                    font-weight: 500;
+                    margin: 15px 0;
+                    color: var(--primary-color);
+                }
+                
+                .memory-actions {
+                    margin-top: 20px;
+                }
+            `;
+            
+            document.head.appendChild(style);
+            
+            // Add event listeners
+            const restartButton = document.getElementById('memory-restart-end');
+            if (restartButton) {
+                restartButton.addEventListener('click', () => {
+                    this.startGame('memory');
+                });
+            }
+            
+            const closeButton = document.getElementById('memory-close');
+            if (closeButton) {
+                closeButton.addEventListener('click', () => {
+                    gameArea.style.display = 'none';
+                });
+            }
+            
+            // Add memory game completion to diary
+            if (typeof Diary !== 'undefined' && Diary.addEntry) {
                 Diary.addEntry({
                     type: 'game',
                     title: 'Hoàn thành trò chơi trí nhớ',
@@ -600,6 +927,8 @@ const Game = {
                     timestamp: new Date().toISOString()
                 });
             }
-        }, 500);
+            
+            console.log('Memory game completed with score:', score);
+        }, 1000);
     }
 };

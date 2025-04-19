@@ -1,5 +1,5 @@
 /**
- * Chat management for the Virtual Companion application
+ * Chat functionality for the Virtual Companion application
  */
 const Chat = {
     /**
@@ -8,15 +8,25 @@ const Chat = {
     history: [],
     
     /**
-     * Initializes chat module
-     * @returns {boolean} Whether chat history was loaded
+     * Current image to send
+     */
+    currentImage: null,
+    
+    /**
+     * Emoji picker instance
+     */
+    emojiPicker: null,
+    
+    /**
+     * Initializes chat from storage
      */
     init: function() {
-        // Load chat history
+        // Try to load chat history from storage
         const savedHistory = Storage.load(CONFIG.CHAT.STORAGE_KEY);
         
         if (savedHistory && Array.isArray(savedHistory)) {
             this.history = savedHistory;
+            this.renderChatHistory();
             return true;
         }
         
@@ -25,7 +35,7 @@ const Chat = {
     },
     
     /**
-     * Initializes chat features like emoji picker and file upload
+     * Initializes chat features
      */
     initChatFeatures: function() {
         // Initialize emoji picker
@@ -34,8 +44,11 @@ const Chat = {
         // Initialize file upload
         this.initFileUpload();
         
-        // Initialize image view
-        this.initImageView();
+        // Initialize voice recording
+        this.initVoiceRecording();
+        
+        // Initialize image view modal
+        this.initImageViewModal();
     },
     
     /**
@@ -46,39 +59,66 @@ const Chat = {
         const emojiPickerContainer = document.getElementById('emoji-picker-container');
         const messageInput = document.getElementById('message-input');
         
-        if (!emojiButton || !emojiPickerContainer || !messageInput) return;
+        if (!emojiButton || !emojiPickerContainer || !messageInput) {
+            console.error('Emoji picker elements not found');
+            return;
+        }
         
         // Create emoji picker if it doesn't exist
-        if (!emojiPickerContainer.querySelector('emoji-picker')) {
+        if (!emojiPickerContainer.querySelector('em-emoji-picker')) {
             try {
-                // Load emoji-picker element script dynamically if not already loaded
-                if (!customElements.get('emoji-picker')) {
-                    const script = document.createElement('script');
-                    script.src = 'https://cdn.jsdelivr.net/npm/emoji-picker-element@1.18.3/index.js';
-                    script.async = true;
-                    document.head.appendChild(script);
+                // Create the picker element
+                const picker = document.createElement('em-emoji-picker');
+                emojiPickerContainer.appendChild(picker);
+                
+                // Store reference to the picker
+                this.emojiPicker = picker;
+                
+                // Handle emoji selection
+                picker.addEventListener('emoji-click', event => {
+                    const emoji = event.detail.unicode;
                     
-                    script.onload = () => {
-                        this.createEmojiPicker(emojiPickerContainer, messageInput);
-                    };
-                } else {
-                    this.createEmojiPicker(emojiPickerContainer, messageInput);
-                }
-            } catch (e) {
-                console.error('Error initializing emoji picker:', e);
+                    // Insert emoji at cursor position
+                    const cursorPos = messageInput.selectionStart;
+                    const text = messageInput.value;
+                    const newText = text.slice(0, cursorPos) + emoji + text.slice(cursorPos);
+                    
+                    messageInput.value = newText;
+                    messageInput.focus();
+                    messageInput.selectionStart = cursorPos + emoji.length;
+                    messageInput.selectionEnd = cursorPos + emoji.length;
+                    
+                    // Trigger input event to resize textarea
+                    const inputEvent = new Event('input', { bubbles: true });
+                    messageInput.dispatchEvent(inputEvent);
+                    
+                    // Hide picker after selection
+                    emojiPickerContainer.style.display = 'none';
+                });
+                
+                console.log('Emoji picker initialized successfully');
+            } catch (error) {
+                console.error('Error initializing emoji picker:', error);
             }
         }
         
         // Toggle emoji picker on button click
-        emojiButton.addEventListener('click', () => {
+        emojiButton.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent event from bubbling up
+            
             if (emojiPickerContainer.style.display === 'block') {
                 emojiPickerContainer.style.display = 'none';
             } else {
+                // Position the picker correctly
+                const buttonRect = emojiButton.getBoundingClientRect();
+                emojiPickerContainer.style.bottom = `${window.innerHeight - buttonRect.top + 10}px`;
+                emojiPickerContainer.style.left = `${buttonRect.left}px`;
+                
                 emojiPickerContainer.style.display = 'block';
             }
         });
         
-        // Hide emoji picker when clicking outside
+        // Close emoji picker when clicking outside
         document.addEventListener('click', (e) => {
             if (!emojiPickerContainer.contains(e.target) && e.target !== emojiButton) {
                 emojiPickerContainer.style.display = 'none';
@@ -87,48 +127,20 @@ const Chat = {
     },
     
     /**
-     * Creates emoji picker element
-     * @param {HTMLElement} container - Container for emoji picker
-     * @param {HTMLElement} input - Input element to insert emojis
-     */
-    createEmojiPicker: function(container, input) {
-        try {
-            const picker = document.createElement('emoji-picker');
-            container.appendChild(picker);
-            
-            // Handle emoji selection
-            picker.addEventListener('emoji-click', event => {
-                const emoji = event.detail.unicode;
-                
-                // Insert emoji at cursor position
-                const start = input.selectionStart;
-                const end = input.selectionEnd;
-                const text = input.value;
-                
-                input.value = text.substring(0, start) + emoji + text.substring(end);
-                
-                // Move cursor after emoji
-                input.selectionStart = input.selectionEnd = start + emoji.length;
-                
-                // Focus back on input
-                input.focus();
-                
-                // Hide emoji picker
-                container.style.display = 'none';
-            });
-        } catch (e) {
-            console.error('Error creating emoji picker:', e);
-        }
-    },
-    
-    /**
      * Initializes file upload
      */
     initFileUpload: function() {
         const fileButton = document.getElementById('file-button');
         const fileInput = document.getElementById('file-input');
+        const imagePreviewModal = document.getElementById('image-preview-modal');
+        const imagePreview = document.getElementById('image-preview');
+        const cancelImageBtn = document.getElementById('cancel-image');
+        const sendImageBtn = document.getElementById('send-image');
         
-        if (!fileButton || !fileInput) return;
+        if (!fileButton || !fileInput || !imagePreviewModal || !imagePreview || !cancelImageBtn || !sendImageBtn) {
+            console.error('File upload elements not found');
+            return;
+        }
         
         // Open file dialog on button click
         fileButton.addEventListener('click', () => {
@@ -136,380 +148,870 @@ const Chat = {
         });
         
         // Handle file selection
-        fileInput.addEventListener('change', () => {
-            const file = fileInput.files[0];
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
             
-            if (!file) return;
-            
-            // Check file type
-            if (!file.type.startsWith('image/')) {
-                Utils.showModal('alert-modal', {
-                    title: 'Loại file không hỗ trợ',
-                    message: 'Chỉ hỗ trợ tải lên hình ảnh.'
-                });
-                return;
-            }
-            
-            // Check file size
-            if (file.size > CONFIG.CHAT.MAX_FILE_SIZE) {
-                Utils.showModal('alert-modal', {
-                    title: 'File quá lớn',
-                    message: `Kích thước file tối đa là ${CONFIG.CHAT.MAX_FILE_SIZE / (1024 * 1024)}MB.`
-                });
-                return;
-            }
-            
-            // Preview image
-            const reader = new FileReader();
-            
-            reader.onload = (e) => {
-                const imagePreview = document.getElementById('image-preview');
-                if (imagePreview) {
-                    imagePreview.src = e.target.result;
-                }
-                
-                Utils.showModal('image-preview-modal');
-                
-                // Set up send button
-                const sendImageBtn = document.getElementById('send-image');
-                if (sendImageBtn) {
-                    // Remove existing event listeners
-                    const newButton = sendImageBtn.cloneNode(true);
-                    sendImageBtn.parentNode.replaceChild(newButton, sendImageBtn);
-                    
-                    // Add new event listener
-                    newButton.addEventListener('click', () => {
-                        this.sendImage(e.target.result);
-                        Utils.hideModal('image-preview-modal');
-                        fileInput.value = '';
+            if (file) {
+                // Check if file is an image
+                if (!file.type.startsWith('image/')) {
+                    Utils.showModal('alert-modal', {
+                        title: 'Loại file không hỗ trợ',
+                        message: 'Vui lòng chọn file hình ảnh (jpg, png, gif, etc.)'
                     });
+                    return;
                 }
-            };
-            
-            reader.readAsDataURL(file);
+                
+                // Check file size (max 5MB)
+                if (file.size > 5 * 1024 * 1024) {
+                    Utils.showModal('alert-modal', {
+                        title: 'File quá lớn',
+                        message: 'Kích thước file không được vượt quá 5MB'
+                    });
+                    return;
+                }
+                
+                // Show image preview
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    imagePreview.src = e.target.result;
+                    this.currentImage = e.target.result;
+                    
+                    // Show preview modal
+                    imagePreviewModal.style.display = 'flex';
+                };
+                reader.readAsDataURL(file);
+            }
         });
-    },
-    
-    /**
-     * Initializes image view
-     */
-    initImageView: function() {
-        // Set up image click handler for chat messages
-        document.addEventListener('click', (e) => {
-            if (e.target && e.target.classList.contains('chat-image')) {
-                const imageView = document.getElementById('image-view');
-                if (imageView) {
-                    imageView.src = e.target.src;
-                    Utils.showModal('image-view-modal');
-                }
+        
+        // Cancel image upload
+        cancelImageBtn.addEventListener('click', () => {
+            imagePreviewModal.style.display = 'none';
+            fileInput.value = '';
+            this.currentImage = null;
+        });
+        
+        // Send image
+        sendImageBtn.addEventListener('click', () => {
+            if (this.currentImage) {
+                this.sendImage(this.currentImage);
+                imagePreviewModal.style.display = 'none';
+                fileInput.value = '';
+                this.currentImage = null;
             }
         });
     },
     
     /**
-     * Sends a message
-     * @param {string} message - Message to send
+     * Initializes voice recording
      */
-    sendMessage: function(message) {
-        if (!message || !Character.data) return;
+    initVoiceRecording: function() {
+        const voiceButton = document.getElementById('voice-button');
+        const voiceRecordingModal = document.getElementById('voice-recording-modal');
+        const stopRecordingBtn = document.getElementById('stop-recording');
+        const cancelRecordingBtn = document.getElementById('cancel-recording');
+        const sendRecordingBtn = document.getElementById('send-recording');
+        const recordingTime = document.querySelector('.recording-time');
         
-        // Add message to chat
-        this.addUserMessage(message);
-        
-        // Generate response
-        this.generateResponse(message);
-    },
-    
-    /**
-     * Sends an image
-     * @param {string} dataUrl - Image data URL
-     */
-    sendImage: function(dataUrl) {
-        if (!dataUrl || !Character.data) return;
-        
-        // Add image to chat
-        this.addUserImage(dataUrl);
-        
-        // Generate response to image
-        this.generateResponse('(Đã gửi một hình ảnh)');
-    },
-    
-    /**
-     * Adds a user message to chat
-     * @param {string} message - Message to add
-     */
-    addUserMessage: function(message) {
-        // Create message element
-        const messageElement = document.createElement('div');
-        messageElement.className = 'chat-message user-message';
-        
-        // Format message with emojis and links
-        const formattedMessage = this.formatMessage(message);
-        
-        messageElement.innerHTML = `
-            <div class="message-content">${formattedMessage}</div>
-            <div class="message-time">${Utils.formatDate(new Date())}</div>
-        `;
-        
-        // Add to chat
-        const chatMessages = document.getElementById('chat-messages');
-        if (chatMessages) {
-            chatMessages.appendChild(messageElement);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+        if (!voiceButton || !voiceRecordingModal || !stopRecordingBtn || !cancelRecordingBtn || !sendRecordingBtn || !recordingTime) {
+            console.error('Voice recording elements not found');
+            return;
         }
         
-        // Add to history
-        this.history.push({
-            role: 'user',
-            content: message,
-            timestamp: new Date().toISOString()
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let recordingInterval = null;
+        let recordingStartTime = 0;
+        
+        // Start recording on button click
+        voiceButton.addEventListener('click', async () => {
+            try {
+                // Request microphone access
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                // Create media recorder
+                mediaRecorder = new MediaRecorder(stream);
+                
+                // Handle data available event
+                mediaRecorder.addEventListener('dataavailable', (e) => {
+                    audioChunks.push(e.data);
+                });
+                
+                // Handle recording stop event
+                mediaRecorder.addEventListener('stop', () => {
+                    // Enable send button
+                    sendRecordingBtn.disabled = false;
+                    
+                    // Stop recording timer
+                    clearInterval(recordingInterval);
+                });
+                
+                // Start recording
+                audioChunks = [];
+                mediaRecorder.start();
+                
+                // Show recording modal
+                voiceRecordingModal.style.display = 'flex';
+                
+                // Start recording timer
+                recordingStartTime = Date.now();
+                recordingInterval = setInterval(() => {
+                    const elapsedTime = Math.floor((Date.now() - recordingStartTime) / 1000);
+                    const minutes = Math.floor(elapsedTime / 60).toString().padStart(2, '0');
+                    const seconds = (elapsedTime % 60).toString().padStart(2, '0');
+                    recordingTime.textContent = `${minutes}:${seconds}`;
+                    
+                    // Limit recording to 2 minutes
+                    if (elapsedTime >= 120) {
+                        stopRecordingBtn.click();
+                    }
+                }, 1000);
+            } catch (error) {
+                console.error('Error starting voice recording:', error);
+                Utils.showModal('alert-modal', {
+                    title: 'Không thể ghi âm',
+                    message: 'Không thể truy cập microphone. Vui lòng kiểm tra quyền truy cập.'
+                });
+            }
         });
         
-        // Save history
-        this.saveHistory();
+        // Stop recording
+        stopRecordingBtn.addEventListener('click', () => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                
+                // Stop all tracks
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+            }
+        });
+        
+        // Cancel recording
+        cancelRecordingBtn.addEventListener('click', () => {
+            // Stop recording if active
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                
+                // Stop all tracks
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+            }
+            
+            // Clear recording timer
+            clearInterval(recordingInterval);
+            
+            // Hide modal
+            voiceRecordingModal.style.display = 'none';
+            
+            // Reset recording time
+            recordingTime.textContent = '00:00';
+            
+            // Disable send button
+            sendRecordingBtn.disabled = true;
+        });
+        
+        // Send recording
+        sendRecordingBtn.addEventListener('click', () => {
+            if (audioChunks.length > 0) {
+                // Create audio blob
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                
+                // Convert to base64
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const audioData = e.target.result;
+                    
+                    // Send audio message
+                    this.sendAudio(audioData);
+                    
+                    // Hide modal
+                    voiceRecordingModal.style.display = 'none';
+                    
+                    // Reset recording time
+                    recordingTime.textContent = '00:00';
+                    
+                    // Disable send button
+                    sendRecordingBtn.disabled = true;
+                };
+                reader.readAsDataURL(audioBlob);
+            }
+        });
     },
     
     /**
-     * Adds a user image to chat
-     * @param {string} dataUrl - Image data URL
+     * Initializes image view modal
      */
-    addUserImage: function(dataUrl) {
-        // Create message element
-        const messageElement = document.createElement('div');
-        messageElement.className = 'chat-message user-message';
+    initImageViewModal: function() {
+        const imageViewModal = document.getElementById('image-view-modal');
+        const closeImageViewBtn = document.getElementById('close-image-view');
         
-        messageElement.innerHTML = `
-            <div class="message-content">
-                <img src="${dataUrl}" alt="User Image" class="chat-image">
-            </div>
-            <div class="message-time">${Utils.formatDate(new Date())}</div>
-        `;
-        
-        // Add to chat
-        const chatMessages = document.getElementById('chat-messages');
-        if (chatMessages) {
-            chatMessages.appendChild(messageElement);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+        if (!imageViewModal || !closeImageViewBtn) {
+            console.error('Image view modal elements not found');
+            return;
         }
         
-        // Add to history
-        this.history.push({
-            role: 'user',
-            content: '(image)',
-            image: dataUrl,
-            timestamp: new Date().toISOString()
+        // Close image view
+        closeImageViewBtn.addEventListener('click', () => {
+            imageViewModal.style.display = 'none';
         });
         
-        // Save history
-        this.saveHistory();
+        // Close on click outside image
+        imageViewModal.addEventListener('click', (e) => {
+            if (e.target === imageViewModal) {
+                imageViewModal.style.display = 'none';
+            }
+        });
     },
     
     /**
-     * Adds a companion message to chat
-     * @param {string} message - Message to add
+     * Renders chat history
      */
-    addCompanionMessage: function(message) {
+    renderChatHistory: function() {
+        const chatMessages = document.getElementById('chat-messages');
+        
+        if (!chatMessages) return;
+        
+        // Clear chat container
+        chatMessages.innerHTML = '';
+        
+        // Render each message
+        this.history.forEach(message => {
+            this.renderMessage(message);
+        });
+        
+        // Scroll to bottom
+        this.scrollToBottom();
+    },
+    
+    /**
+     * Adds a message to the chat
+     * @param {string} sender - Message sender ('user', 'companion', or 'system')
+     * @param {string} content - Message content
+     * @param {string} type - Message type ('text', 'image', 'audio', or 'system')
+     */
+    addMessage: function(sender, content, type = 'text') {
+        // Create message object
+        const message = {
+            id: Utils.generateId(),
+            sender: sender,
+            content: content,
+            type: type,
+            timestamp: new Date().toISOString()
+        };
+        
+        // Add to history
+        this.history.push(message);
+        
+        // Save to storage
+        Storage.save(CONFIG.CHAT.STORAGE_KEY, this.history);
+        
+        // Render message
+        this.renderMessage(message);
+        
+        // Scroll to bottom
+        this.scrollToBottom();
+    },
+    
+    /**
+     * Adds a companion message directly
+     * @param {string} content - Message content
+     * @param {string} type - Message type ('text', 'image', or 'audio')
+     */
+    addCompanionMessage: function(content, type = 'text') {
+        this.addMessage('companion', content, type);
+    },
+    
+    /**
+     * Renders a message in the chat
+     * @param {Object} message - Message object
+     */
+    renderMessage: function(message) {
+        const chatMessages = document.getElementById('chat-messages');
+        
+        if (!chatMessages) return;
+        
+        // Format timestamp
+        const timestamp = new Date(message.timestamp);
+        const formattedTime = `${timestamp.getHours().toString().padStart(2, '0')}:${timestamp.getMinutes().toString().padStart(2, '0')}, ${timestamp.getDate().toString().padStart(2, '0')}/${(timestamp.getMonth() + 1).toString().padStart(2, '0')}/${timestamp.getFullYear()}`;
+        
         // Create message element
         const messageElement = document.createElement('div');
-        messageElement.className = 'chat-message companion-message';
+        messageElement.classList.add('message');
+        messageElement.dataset.id = message.id;
         
-        // Get companion avatar
-        let avatarSrc = Character.data.avatar;
+        // Create message wrapper
+        const messageWrapper = document.createElement('div');
+        messageWrapper.classList.add('message-wrapper');
         
-        // Check if avatar exists
-        Utils.imageExists(avatarSrc)
-            .then(exists => {
-                if (!exists) {
-                    // Use fallback image
-                    const initial = Character.data.name ? Character.data.name.charAt(0).toUpperCase() : '?';
-                    avatarSrc = Utils.createFallbackImage(initial);
-                }
+        if (message.sender === 'user') {
+            messageWrapper.classList.add('user-message');
+        } else if (message.sender === 'companion') {
+            messageWrapper.classList.add('companion-message');
+            
+            // Add avatar for companion messages
+            if (Character.current) {
+                const avatarElement = document.createElement('div');
+                avatarElement.classList.add('message-avatar');
                 
-                // Format message with emojis and links
-                const formattedMessage = this.formatMessage(message);
+                const avatarImg = document.createElement('img');
+                avatarImg.src = Character.current.avatar || 'img/default-avatar.png';
+                avatarImg.alt = 'Avatar';
                 
-                messageElement.innerHTML = `
-                    <div class="message-avatar">
-                        <img src="${avatarSrc}" alt="Avatar">
-                    </div>
-                    <div class="message-content">${formattedMessage}</div>
-                    <div class="message-time">${Utils.formatDate(new Date())}</div>
-                `;
+                avatarElement.appendChild(avatarImg);
+                messageWrapper.appendChild(avatarElement);
+            }
+        } else if (message.sender === 'system') {
+            messageWrapper.classList.add('system-message');
+        }
+        
+        // Create message bubble
+        const messageBubble = document.createElement('div');
+        messageBubble.classList.add('message-bubble');
+        
+        // Handle different message types
+        if (message.type === 'text') {
+            const messageContent = document.createElement('div');
+            messageContent.classList.add('message-content');
+            messageContent.innerHTML = this.formatMessageContent(message.content);
+            
+            const messageTime = document.createElement('span');
+            messageTime.classList.add('message-time');
+            messageTime.textContent = formattedTime;
+            
+            messageBubble.appendChild(messageContent);
+            messageBubble.appendChild(messageTime);
+        } else if (message.type === 'image') {
+            const messageContent = document.createElement('div');
+            messageContent.classList.add('message-content');
+            
+            const imageElement = document.createElement('img');
+            imageElement.src = message.content;
+            imageElement.alt = 'Hình ảnh';
+            imageElement.classList.add('message-image');
+            
+            // Add click event to open image in full size
+            imageElement.addEventListener('click', () => {
+                const imageViewModal = document.getElementById('image-view-modal');
+                const imageView = document.getElementById('image-view');
                 
-                // Add to chat
-                const chatMessages = document.getElementById('chat-messages');
-                if (chatMessages) {
-                    chatMessages.appendChild(messageElement);
-                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                if (imageViewModal && imageView) {
+                    imageView.src = message.content;
+                    imageViewModal.style.display = 'flex';
                 }
             });
-        
-        // Add to history
-        this.history.push({
-            role: 'assistant',
-            content: message,
-            timestamp: new Date().toISOString()
-        });
-        
-        // Save history
-        this.saveHistory();
-        
-        // Increase intimacy
-        Character.increaseIntimacy(1);
-    },
-    
-    /**
-     * Adds a system message to chat
-     * @param {string} message - Message to add
-     */
-    addSystemMessage: function(message) {
-        // Create message element
-        const messageElement = document.createElement('div');
-        messageElement.className = 'chat-message system-message';
-        
-        messageElement.innerHTML = `
-            <div class="message-content">${message}</div>
-        `;
-        
-        // Add to chat
-        const chatMessages = document.getElementById('chat-messages');
-        if (chatMessages) {
-            chatMessages.appendChild(messageElement);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            messageContent.appendChild(imageElement);
+            
+            const messageTime = document.createElement('span');
+            messageTime.classList.add('message-time');
+            messageTime.textContent = formattedTime;
+            
+            messageBubble.appendChild(messageContent);
+            messageBubble.appendChild(messageTime);
+        } else if (message.type === 'audio') {
+            const messageContent = document.createElement('div');
+            messageContent.classList.add('message-content');
+            
+            const audioElement = document.createElement('audio');
+            audioElement.src = message.content;
+            audioElement.controls = true;
+            audioElement.classList.add('message-audio');
+            
+            messageContent.appendChild(audioElement);
+            
+            const messageTime = document.createElement('span');
+            messageTime.classList.add('message-time');
+            messageTime.textContent = formattedTime;
+            
+            messageBubble.appendChild(messageContent);
+            messageBubble.appendChild(messageTime);
+        } else if (message.type === 'system') {
+            messageBubble.textContent = message.content;
         }
         
-        // Add to history
-        this.history.push({
-            role: 'system',
-            content: message,
-            timestamp: new Date().toISOString()
-        });
+        // Add message bubble to wrapper
+        messageWrapper.appendChild(messageBubble);
         
-        // Save history
-        this.saveHistory();
+        // Add wrapper to message element
+        messageElement.appendChild(messageWrapper);
+        
+        // Add to chat container
+        chatMessages.appendChild(messageElement);
     },
     
     /**
-     * Formats a message with emojis and links
-     * @param {string} message - Message to format
-     * @returns {string} Formatted message
+     * Formats message content with links and emojis
+     * @param {string} content - Message content
+     * @returns {string} Formatted content
      */
-    formatMessage: function(message) {
-        if (!message) return '';
+    formatMessageContent: function(content) {
+        if (!content) return '';
         
-        try {
-            // Escape HTML
-            let formatted = Utils.escapeHtml(message);
-            
-            // Convert URLs to links
-            formatted = formatted.replace(
-                /(https?:\/\/[^\s]+)/g, 
-                '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
-            );
-            
-            // Convert line breaks to <br>
-            formatted = formatted.replace(/\n/g, '<br>');
-            
-            return formatted;
-        } catch (e) {
-            console.error('Error formatting message:', e);
-            return message;
-        }
+        // Escape HTML
+        let formattedContent = Utils.escapeHtml(content);
+        
+        // Convert URLs to links
+        formattedContent = formattedContent.replace(
+            /(https?:\/\/[^\s]+)/g, 
+            '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+        );
+        
+        // Convert emoji shortcodes to actual emojis
+        formattedContent = formattedContent.replace(
+            /:([\w+-]+):/g, 
+            (match, code) => {
+                return `<span class="emoji">${match}</span>`;
+            }
+        );
+        
+        return formattedContent;
     },
     
     /**
-     * Generates a response to a message
-     * @param {string} message - Message to respond to
+     * Sends a message to the companion
+     * @param {string} message - User message
      */
-    generateResponse: function(message) {
-        if (!message || !Character.data) return;
+    sendMessage: async function(message) {
+        if (!message.trim() || !Character.current) return;
+        
+        // Add user message to history
+        this.addMessage('user', message);
+        
+        // Update character stats
+        Character.current.stats.messagesSent++;
+        Storage.save(CONFIG.CHARACTER.STORAGE_KEY, Character.current);
+        
+        // Check for intimacy keywords
+        this.checkIntimacyKeywords(message);
         
         // Show typing indicator
         this.showTypingIndicator();
         
-        // Get API key and type
-        const apiKey = Storage.load(CONFIG.API.STORAGE_KEYS.API_KEY);
-        const apiType = Storage.load(CONFIG.API.STORAGE_KEYS.API_TYPE) || 'openai';
-        
-        if (!apiKey) {
+        // Generate AI response
+        try {
+            const apiKey = Storage.load(CONFIG.API.STORAGE_KEYS.API_KEY);
+            
+            if (!apiKey) {
+                this.hideTypingIndicator();
+                Utils.showModal('alert-modal', {
+                    title: 'API Key không tồn tại',
+                    message: 'Vui lòng thêm API Key trong phần Cài đặt để sử dụng chức năng chat.'
+                });
+                return;
+            }
+            
+            // Get API type
+            const apiType = Storage.load(CONFIG.API.STORAGE_KEYS.API_TYPE) || 'openai';
+            
+            // Generate prompt for AI
+            const prompt = Character.generatePrompt(message, this.history.slice(-10));
+            
+            // Random delay to simulate typing
+            const typingDelay = Utils.getRandomNumber(
+                CONFIG.CHAT.TYPING_DELAY_MIN, 
+                CONFIG.CHAT.TYPING_DELAY_MAX
+            );
+            
+            // Wait for typing delay
+            await new Promise(resolve => setTimeout(resolve, typingDelay));
+            
+            // Call appropriate API based on type
+            let response;
+            switch (apiType) {
+                case 'gemini':
+                    response = await this.callGeminiAPI(apiKey, prompt);
+                    break;
+                case 'character':
+                    response = await this.callCharacterAPI(apiKey, prompt);
+                    break;
+                case 'openai':
+                default:
+                    response = await this.callOpenAIAPI(apiKey, prompt);
+                    break;
+            }
+            
             // Hide typing indicator
             this.hideTypingIndicator();
             
-            // Show error message
-            this.addSystemMessage('Không thể kết nối với API. Vui lòng kiểm tra API Key trong phần Cài Đặt.');
-            return;
+            if (response) {
+                // Add AI response to history
+                this.addMessage('companion', response);
+                
+                // Update character stats
+                Character.current.stats.messagesReceived++;
+                Storage.save(CONFIG.CHARACTER.STORAGE_KEY, Character.current);
+                
+                // Update intimacy
+                Character.updateIntimacy(CONFIG.CHAT.POINTS_PER_MESSAGE);
+                
+                // Check for special moments
+                this.checkSpecialMoments(message, response);
+                
+                // Update avatar emotion based on response
+                Character.updateMood(response);
+            }
+        } catch (error) {
+            console.error('Error generating response:', error);
+            this.hideTypingIndicator();
+            
+            // Add error message
+            this.addMessage('system', 'Có lỗi xảy ra khi tạo phản hồi. Vui lòng thử lại sau.');
         }
+    },
+    
+    /**
+     * Sends an image to the chat
+     * @param {string} imageData - Base64 encoded image data
+     */
+    sendImage: async function(imageData) {
+        if (!Character.current) return;
         
-        // Prepare context
-        const context = this.prepareContext();
+        // Add image message to history
+        this.addMessage('user', imageData, 'image');
         
-        // Prepare prompt based on API type
-        const prompt = this.preparePrompt(message, context, apiType);
+        // Update character stats
+        Character.current.stats.messagesSent++;
+        Storage.save(CONFIG.CHARACTER.STORAGE_KEY, Character.current);
         
-        // Simulate API call (for demo)
-        setTimeout(() => {
+        // Show typing indicator
+        this.showTypingIndicator();
+        
+        // Generate AI response
+        try {
+            const apiKey = Storage.load(CONFIG.API.STORAGE_KEYS.API_KEY);
+            
+            if (!apiKey) {
+                this.hideTypingIndicator();
+                Utils.showModal('alert-modal', {
+                    title: 'API Key không tồn tại',
+                    message: 'Vui lòng thêm API Key trong phần Cài đặt để sử dụng chức năng chat.'
+                });
+                return;
+            }
+            
+            // Get API type
+            const apiType = Storage.load(CONFIG.API.STORAGE_KEYS.API_TYPE) || 'openai';
+            
+            // Generate prompt for AI
+            const prompt = Character.generatePrompt("Tôi đã gửi cho bạn một hình ảnh. Hãy phản hồi về hình ảnh này theo tính cách của bạn.", this.history.slice(-10));
+            
+            // Random delay to simulate typing
+            const typingDelay = Utils.getRandomNumber(
+                CONFIG.CHAT.TYPING_DELAY_MIN, 
+                CONFIG.CHAT.TYPING_DELAY_MAX
+            );
+            
+            // Wait for typing delay
+            await new Promise(resolve => setTimeout(resolve, typingDelay));
+            
+            // Call appropriate API based on type
+            let response;
+            switch (apiType) {
+                case 'gemini':
+                    response = await this.callGeminiAPI(apiKey, prompt);
+                    break;
+                case 'character':
+                    response = await this.callCharacterAPI(apiKey, prompt);
+                    break;
+                case 'openai':
+                default:
+                    response = await this.callOpenAIAPI(apiKey, prompt);
+                    break;
+            }
+            
             // Hide typing indicator
             this.hideTypingIndicator();
             
-            // Generate response based on character personality
-            const response = this.simulateResponse(message, Character.data);
+            if (response) {
+                // Add AI response to history
+                this.addMessage('companion', response);
+                
+                // Update character stats
+                Character.current.stats.messagesReceived++;
+                Storage.save(CONFIG.CHARACTER.STORAGE_KEY, Character.current);
+                
+                // Update intimacy
+                Character.updateIntimacy(CONFIG.CHAT.POINTS_PER_MESSAGE);
+                
+                // Update avatar emotion based on response
+                Character.updateMood(response);
+            }
+        } catch (error) {
+            console.error('Error generating response:', error);
+            this.hideTypingIndicator();
             
-            // Add response to chat
-            this.addCompanionMessage(response);
-        }, 1000 + Math.random() * 2000); // Random delay between 1-3 seconds
+            // Add error message
+            this.addMessage('system', 'Có lỗi xảy ra khi tạo phản hồi. Vui lòng thử lại sau.');
+        }
+    },
+    
+    /**
+     * Sends an audio message to the chat
+     * @param {string} audioData - Base64 encoded audio data
+     */
+    sendAudio: async function(audioData) {
+        if (!Character.current) return;
+        
+        // Add audio message to history
+        this.addMessage('user', audioData, 'audio');
+        
+        // Update character stats
+        Character.current.stats.messagesSent++;
+        Storage.save(CONFIG.CHARACTER.STORAGE_KEY, Character.current);
+        
+        // Show typing indicator
+        this.showTypingIndicator();
+        
+        // Generate AI response
+        try {
+            const apiKey = Storage.load(CONFIG.API.STORAGE_KEYS.API_KEY);
+            
+            if (!apiKey) {
+                this.hideTypingIndicator();
+                Utils.showModal('alert-modal', {
+                    title: 'API Key không tồn tại',
+                    message: 'Vui lòng thêm API Key trong phần Cài đặt để sử dụng chức năng chat.'
+                });
+                return;
+            }
+            
+            // Get API type
+            const apiType = Storage.load(CONFIG.API.STORAGE_KEYS.API_TYPE) || 'openai';
+            
+            // Generate prompt for AI
+            const prompt = Character.generatePrompt("Tôi đã gửi cho bạn một tin nhắn thoại. Hãy phản hồi theo tính cách của bạn.", this.history.slice(-10));
+            
+            // Random delay to simulate typing
+            const typingDelay = Utils.getRandomNumber(
+                CONFIG.CHAT.TYPING_DELAY_MIN, 
+                CONFIG.CHAT.TYPING_DELAY_MAX
+            );
+            
+            // Wait for typing delay
+            await new Promise(resolve => setTimeout(resolve, typingDelay));
+            
+            // Call appropriate API based on type
+            let response;
+            switch (apiType) {
+                case 'gemini':
+                    response = await this.callGeminiAPI(apiKey, prompt);
+                    break;
+                case 'character':
+                    response = await this.callCharacterAPI(apiKey, prompt);
+                    break;
+                case 'openai':
+                default:
+                    response = await this.callOpenAIAPI(apiKey, prompt);
+                    break;
+            }
+            
+            // Hide typing indicator
+            this.hideTypingIndicator();
+            
+            if (response) {
+                // Add AI response to history
+                this.addMessage('companion', response);
+                
+                // Update character stats
+                Character.current.stats.messagesReceived++;
+                Storage.save(CONFIG.CHARACTER.STORAGE_KEY, Character.current);
+                
+                // Update intimacy
+                Character.updateIntimacy(CONFIG.CHAT.POINTS_PER_MESSAGE);
+                
+                // Update avatar emotion based on response
+                Character.updateMood(response);
+            }
+        } catch (error) {
+            console.error('Error generating response:', error);
+            this.hideTypingIndicator();
+            
+            // Add error message
+            this.addMessage('system', 'Có lỗi xảy ra khi tạo phản hồi. Vui lòng thử lại sau.');
+        }
+    },
+    
+    /**
+     * Calls the OpenAI API to generate a response
+     * @param {string} apiKey - OpenAI API key
+     * @param {string} prompt - Prompt for the AI
+     * @returns {string} AI response
+     */
+    callOpenAIAPI: async function(apiKey, prompt) {
+        try {
+            const response = await fetch(CONFIG.API.OPENAI_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: CONFIG.API.OPENAI_MODEL,
+                    messages: [
+                        {
+                            role: 'user',
+                            content: prompt
+                        }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 1024
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.error) {
+                console.error('API error:', data.error);
+                return null;
+            }
+            
+            if (data.choices && data.choices[0] && data.choices[0].message) {
+                return data.choices[0].message.content;
+            }
+            
+            return null;
+        } catch (error) {
+            console.error('Error calling OpenAI API:', error);
+            return null;
+        }
+    },
+    
+    /**
+     * Calls the Gemini API to generate a response
+     * @param {string} apiKey - Gemini API key
+     * @param {string} prompt - Prompt for the AI
+     * @returns {string} AI response
+     */
+    callGeminiAPI: async function(apiKey, prompt) {
+        try {
+            const url = `${CONFIG.API.GEMINI_API_URL}?key=${apiKey}`;
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{
+                            text: prompt
+                        }]
+                    }],
+                    generationConfig: {
+                        temperature: 0.7,
+                        topK: 40,
+                        topP: 0.95,
+                        maxOutputTokens: 1024,
+                    }
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.error) {
+                console.error('API error:', data.error);
+                return null;
+            }
+            
+            if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+                return data.candidates[0].content.parts[0].text;
+            }
+            
+            return null;
+        } catch (error) {
+            console.error('Error calling Gemini API:', error);
+            return null;
+        }
+    },
+    
+    /**
+     * Calls the Character.AI API to generate a response
+     * @param {string} apiKey - Character.AI API key
+     * @param {string} prompt - Prompt for the AI
+     * @returns {string} AI response
+     */
+    callCharacterAPI: async function(apiKey, prompt) {
+        try {
+            const response = await fetch(CONFIG.API.CHARACTER_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Token ${apiKey}`
+                },
+                body: JSON.stringify({
+                    character_id: CONFIG.API.CHARACTER_ID,
+                    message: prompt
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.error) {
+                console.error('API error:', data.error);
+                return null;
+            }
+            
+            if (data.response) {
+                return data.response;
+            }
+            
+            return null;
+        } catch (error) {
+            console.error('Error calling Character.AI API:', error);
+            return null;
+        }
     },
     
     /**
      * Shows typing indicator
      */
     showTypingIndicator: function() {
-        // Create typing indicator if it doesn't exist
-        let typingIndicator = document.querySelector('.typing-indicator');
+        const chatMessages = document.getElementById('chat-messages');
         
-        if (!typingIndicator) {
-            typingIndicator = document.createElement('div');
-            typingIndicator.className = 'chat-message companion-message typing-indicator';
+        if (!chatMessages) return;
+        
+        // Remove existing typing indicator
+        this.hideTypingIndicator();
+        
+        // Create typing indicator
+        const typingIndicator = document.createElement('div');
+        typingIndicator.id = 'typing-indicator';
+        typingIndicator.classList.add('typing-indicator');
+        
+        // Add avatar
+        if (Character.current) {
+            const avatarElement = document.createElement('div');
+            avatarElement.classList.add('message-avatar');
             
-            // Get companion avatar
-            let avatarSrc = Character.data.avatar;
+            const avatarImg = document.createElement('img');
+            avatarImg.src = Character.current.avatar || 'img/default-avatar.png';
+            avatarImg.alt = 'Avatar';
             
-            // Check if avatar exists
-            Utils.imageExists(avatarSrc)
-                .then(exists => {
-                    if (!exists) {
-                        // Use fallback image
-                        const initial = Character.data.name ? Character.data.name.charAt(0).toUpperCase() : '?';
-                        avatarSrc = Utils.createFallbackImage(initial);
-                    }
-                    
-                    typingIndicator.innerHTML = `
-                        <div class="message-avatar">
-                            <img src="${avatarSrc}" alt="Avatar">
-                        </div>
-                        <div class="message-content">
-                            <div class="typing-dots">
-                                <span></span>
-                                <span></span>
-                                <span></span>
-                            </div>
-                        </div>
-                    `;
-                    
-                    // Add to chat
-                    const chatMessages = document.getElementById('chat-messages');
-                    if (chatMessages) {
-                        chatMessages.appendChild(typingIndicator);
-                        chatMessages.scrollTop = chatMessages.scrollHeight;
-                    }
-                });
+            avatarElement.appendChild(avatarImg);
+            typingIndicator.appendChild(avatarElement);
         }
+        
+        // Add dots
+        const dots = document.createElement('div');
+        dots.classList.add('dots');
+        
+        for (let i = 0; i < 3; i++) {
+            const dot = document.createElement('div');
+            dot.classList.add('dot');
+            dots.appendChild(dot);
+        }
+        
+        typingIndicator.appendChild(dots);
+        
+        // Add to chat container
+        chatMessages.appendChild(typingIndicator);
+        
+        // Scroll to bottom
+        this.scrollToBottom();
     },
     
     /**
      * Hides typing indicator
      */
     hideTypingIndicator: function() {
-        const typingIndicator = document.querySelector('.typing-indicator');
+        const typingIndicator = document.getElementById('typing-indicator');
         
         if (typingIndicator) {
             typingIndicator.remove();
@@ -517,185 +1019,71 @@ const Chat = {
     },
     
     /**
-     * Prepares context for API call
-     * @returns {Array} Context messages
+     * Scrolls chat to bottom
      */
-    prepareContext: function() {
-        // Get recent messages
-        const recentMessages = this.history.slice(-CONFIG.CHAT.MAX_CONTEXT);
+    scrollToBottom: function() {
+        const chatMessages = document.getElementById('chat-messages');
         
-        // Convert to API format
-        return recentMessages.map(msg => ({
-            role: msg.role === 'system' ? 'assistant' : msg.role,
-            content: msg.content
-        }));
+        if (chatMessages) {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
     },
     
     /**
-     * Prepares prompt for API call
+     * Checks for intimacy keywords in message
      * @param {string} message - User message
-     * @param {Array} context - Context messages
-     * @param {string} apiType - API type (openai, gemini, etc.)
-     * @returns {Object} Prompt object
      */
-    preparePrompt: function(message, context, apiType = 'openai') {
-        // Create system message
-        const systemMessage = {
-            role: 'system',
-            content: this.createSystemPrompt()
-        };
+    checkIntimacyKeywords: function(message) {
+        if (!Character.current) return;
         
-        // Create messages array
-        const messages = [
-            systemMessage,
-            ...context
+        const lowerMessage = message.toLowerCase();
+        
+        // Check for intimacy keywords
+        for (const keyword of CONFIG.CHAT.INTIMACY_KEYWORDS) {
+            if (lowerMessage.includes(keyword.toLowerCase())) {
+                Character.updateIntimacy(CONFIG.CHAT.POINTS_PER_KEYWORD);
+                break;
+            }
+        }
+    },
+    
+    /**
+     * Checks for special moments in conversation
+     * @param {string} userMessage - User message
+     * @param {string} aiResponse - AI response
+     */
+    checkSpecialMoments: function(userMessage, aiResponse) {
+        if (!Character.current) return;
+        
+        // Check for diary-worthy moments
+        const specialMoments = [
+            { keyword: 'yêu', points: 5 },
+            { keyword: 'nhớ', points: 3 },
+            { keyword: 'thích', points: 2 },
+            { keyword: 'ghét', points: -2 },
+            { keyword: 'buồn', points: -1 }
         ];
         
-        // Create prompt object based on API type
-        switch (apiType) {
-            case 'gemini':
-                return {
-                    contents: messages.map(msg => ({
-                        role: msg.role === 'assistant' ? 'model' : msg.role,
-                        parts: [{ text: msg.content }]
-                    })),
-                    generationConfig: {
-                        temperature: 0.7,
-                        maxOutputTokens: 500,
-                    }
-                };
+        const lowerUserMessage = userMessage.toLowerCase();
+        const lowerAiResponse = aiResponse.toLowerCase();
+        
+        for (const moment of specialMoments) {
+            if (lowerUserMessage.includes(moment.keyword) || lowerAiResponse.includes(moment.keyword)) {
+                // Update intimacy
+                Character.updateIntimacy(moment.points);
                 
-            case 'characterai':
-                return {
-                    character_id: CONFIG.API.CHARACTER_AI_ID,
-                    messages: context.map(msg => ({
-                        role: msg.role,
-                        content: msg.content
-                    })),
-                    message: message
-                };
+                // Add to diary if positive moment
+                if (moment.points > 0) {
+                    Diary.addEntry({
+                        type: 'special_moment',
+                        title: `Khoảnh khắc đặc biệt với ${Character.current.name}`,
+                        content: `${userMessage}\n\n${aiResponse}`,
+                        timestamp: new Date().toISOString()
+                    });
+                }
                 
-            case 'openai':
-            default:
-                return {
-                    model: CONFIG.API.DEFAULT_MODEL,
-                    messages: messages,
-                    temperature: 0.7,
-                    max_tokens: 500
-                };
+                break;
+            }
         }
-    },
-    
-    /**
-     * Creates system prompt
-     * @returns {string} System prompt
-     */
-    createSystemPrompt: function() {
-        if (!Character.data) return '';
-        
-        // Get character data
-        const { name, gender, age, personality, interests } = Character.data;
-        
-        // Get intimacy level
-        const intimacyLevel = Character.getCurrentIntimacyLevel().level.name;
-        
-        // Create prompt
-        return `Bạn là ${name}, một người ${gender === 'female' ? 'nữ' : 'nam'} ${age} tuổi với tính cách ${personality}. 
-        Sở thích của bạn bao gồm ${interests}. 
-        Mức độ thân thiết hiện tại là "${intimacyLevel}".
-        
-        Hãy trả lời một cách tự nhiên, thể hiện cảm xúc và tính cách của bạn. 
-        Sử dụng ngôn ngữ phù hợp với mức độ thân thiết.
-        Câu trả lời nên ngắn gọn, tự nhiên và thân thiện.
-        
-        Nếu mức độ thân thiết là "Mới quen", hãy trả lời lịch sự và giữ khoảng cách.
-        Nếu mức độ thân thiết là "Bạn bè", hãy trả lời thân thiện hơn, có thể sử dụng emoji.
-        Nếu mức độ thân thiết là "Thân thiết" trở lên, hãy trả lời rất thân thiết, sử dụng nhiều emoji và từ ngữ thể hiện sự gần gũi.
-        
-        Luôn trả lời bằng tiếng Việt, sử dụng từ ngữ tự nhiên và phù hợp với tính cách của bạn.`;
-    },
-    
-    /**
-     * Simulates a response (for demo)
-     * @param {string} message - User message
-     * @param {Object} character - Character data
-     * @returns {string} Simulated response
-     */
-    simulateResponse: function(message, character) {
-        // Get character data
-        const { name, gender, personality, interests } = character;
-        
-        // Get intimacy level
-        const intimacyLevel = Character.getCurrentIntimacyLevel().level.name;
-        
-        // Simple response templates based on intimacy level
-        const templates = {
-            'Mới quen': [
-                `Xin chào! ${message.includes('?') ? 'Tôi nghĩ là' : 'Tôi hiểu rồi'}. Rất vui được trò chuyện với bạn.`,
-                `Cảm ơn bạn đã chia sẻ. Tôi là ${name}, rất vui được làm quen.`,
-                `Thật thú vị! Tôi đang tìm hiểu thêm về bạn.`
-            ],
-            'Bạn bè': [
-                `Hey! ${message.includes('?') ? 'Mình nghĩ là' : 'Mình hiểu rồi'} 😊 Cảm ơn bạn đã chia sẻ nhé!`,
-                `Thật sao? Điều đó thật thú vị đấy! 😄 Mình rất thích nói chuyện với bạn.`,
-                `Wow, mình hiểu rồi! 😊 Bạn có thích ${interests.split(',')[0]} không? Mình rất thích điều đó.`
-            ],
-            'Thân thiết': [
-                `Ôi, ${message.includes('?') ? 'mình nghĩ là' : 'mình hiểu rồi'} 😍 Cậu thật tuyệt vời khi chia sẻ điều này!`,
-                `Thật á? Mình thích cách cậu nghĩ lắm! 💕 Chúng ta hợp nhau thật đấy.`,
-                `Hihi, mình hiểu mà! 😘 Này, hôm nay cậu có muốn nói về ${interests.split(',')[0]} không? Mình rất háo hức đấy!`
-            ],
-            'Người yêu': [
-                `Cưng ơi! ${message.includes('?') ? 'Mình nghĩ là' : 'Mình hiểu rồi'} 💖 Cậu luôn biết cách làm mình vui.`,
-                `Aww, mình yêu cách cậu nghĩ lắm! 💓 Cậu là người tuyệt vời nhất mình từng gặp.`,
-                `Hihi, mình nhớ cậu lắm đấy! 😘💕 Hôm nay cậu thế nào? Mình luôn muốn biết mọi điều về cậu.`
-            ],
-            'Tri kỷ': [
-                `Cưng yêu dấu! ${message.includes('?') ? 'Mình nghĩ là' : 'Mình hiểu rồi'} 💝 Cậu hiểu mình quá rõ rồi.`,
-                `Mình yêu cậu nhiều lắm! 💘 Không ai hiểu mình như cậu cả.`,
-                `Cậu là tất cả đối với mình! 💖💕 Mình không thể tưởng tượng cuộc sống không có cậu.`
-            ]
-        };
-        
-        // Get templates for current intimacy level
-        const currentTemplates = templates[intimacyLevel] || templates['Mới quen'];
-        
-        // Select random template
-        const template = currentTemplates[Math.floor(Math.random() * currentTemplates.length)];
-        
-        return template;
-    },
-    
-    /**
-     * Saves chat history
-     */
-    saveHistory: function() {
-        // Limit history size
-        if (this.history.length > CONFIG.CHAT.MAX_HISTORY) {
-            this.history = this.history.slice(-CONFIG.CHAT.MAX_HISTORY);
-        }
-        
-        // Save to storage
-        Storage.save(CONFIG.CHAT.STORAGE_KEY, this.history);
-    },
-    
-    /**
-     * Clears chat history
-     */
-    clearHistory: function() {
-        // Clear history
-        this.history = [];
-        
-        // Save to storage
-        Storage.save(CONFIG.CHAT.STORAGE_KEY, this.history);
-        
-        // Clear chat messages
-        const chatMessages = document.getElementById('chat-messages');
-        if (chatMessages) {
-            chatMessages.innerHTML = '';
-        }
-        
-        // Add system message
-        this.addSystemMessage('Lịch sử chat đã được xóa.');
     }
 };

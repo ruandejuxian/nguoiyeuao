@@ -112,12 +112,12 @@ const CONFIG = {
         /**
          * Google API key
          */
-        API_KEY: '',
+        API_KEY: 'AIzaSyDSih_kVKFSbPaak6lHIfp1V6fOkCty0rM',
         
         /**
          * Google client ID
          */
-        CLIENT_ID: '',
+        CLIENT_ID: '536864309230-uh3862et3pemo34k2lr3fhks4db3k5a7.apps.googleusercontent.com',
         
         /**
          * Google API scopes

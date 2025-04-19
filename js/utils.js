@@ -16,17 +16,24 @@ const Utils = {
      * @returns {string} Formatted date
      */
     formatDate: function(date) {
-        if (!(date instanceof Date)) {
-            date = new Date(date);
+        if (!date) return '';
+        
+        try {
+            if (!(date instanceof Date)) {
+                date = new Date(date);
+            }
+            
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            const day = date.getDate().toString().padStart(2, '0');
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const year = date.getFullYear();
+            
+            return `${hours}:${minutes}, ${day}/${month}/${year}`;
+        } catch (e) {
+            console.error('Error formatting date:', e);
+            return '';
         }
-        
-        const hours = date.getHours().toString().padStart(2, '0');
-        const minutes = date.getMinutes().toString().padStart(2, '0');
-        const day = date.getDate().toString().padStart(2, '0');
-        const month = (date.getMonth() + 1).toString().padStart(2, '0');
-        const year = date.getFullYear();
-        
-        return `${hours}:${minutes}, ${day}/${month}/${year}`;
     },
     
     /**
@@ -116,9 +123,16 @@ const Utils = {
      * @returns {string} Escaped text
      */
     escapeHtml: function(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+        if (!text) return '';
+        
+        try {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        } catch (e) {
+            console.error('Error escaping HTML:', e);
+            return text;
+        }
     },
     
     /**
@@ -142,17 +156,27 @@ const Utils = {
      * @returns {Blob} Blob
      */
     dataUrlToBlob: function(dataUrl) {
-        const arr = dataUrl.split(',');
-        const mime = arr[0].match(/:(.*?);/)[1];
-        const bstr = atob(arr[1]);
-        let n = bstr.length;
-        const u8arr = new Uint8Array(n);
+        if (!dataUrl) return null;
         
-        while (n--) {
-            u8arr[n] = bstr.charCodeAt(n);
+        try {
+            const arr = dataUrl.split(',');
+            const match = arr[0].match(/:(.*?);/);
+            if (!match) return null;
+            
+            const mime = match[1];
+            const bstr = atob(arr[1]);
+            let n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            
+            while (n--) {
+                u8arr[n] = bstr.charCodeAt(n);
+            }
+            
+            return new Blob([u8arr], { type: mime });
+        } catch (e) {
+            console.error('Error converting data URL to Blob:', e);
+            return null;
         }
-        
-        return new Blob([u8arr], { type: mime });
     },
     
     /**
@@ -161,7 +185,14 @@ const Utils = {
      * @returns {string} File extension
      */
     getFileExtension: function(filename) {
-        return filename.slice((filename.lastIndexOf('.') - 1 >>> 0) + 2);
+        if (!filename) return '';
+        
+        try {
+            return filename.slice((filename.lastIndexOf('.') - 1 >>> 0) + 2);
+        } catch (e) {
+            console.error('Error getting file extension:', e);
+            return '';
+        }
     },
     
     /**
@@ -170,6 +201,8 @@ const Utils = {
      * @returns {boolean} Whether string is a valid URL
      */
     isValidUrl: function(str) {
+        if (!str) return false;
+        
         try {
             new URL(str);
             return true;
@@ -185,7 +218,60 @@ const Utils = {
      * @returns {string} Truncated text
      */
     truncateText: function(text, length) {
+        if (!text) return '';
         if (text.length <= length) return text;
         return text.substring(0, length) + '...';
+    },
+    
+    /**
+     * Checks if an image exists
+     * @param {string} url - Image URL
+     * @returns {Promise<boolean>} Whether image exists
+     */
+    imageExists: function(url) {
+        return new Promise((resolve) => {
+            if (!url) {
+                resolve(false);
+                return;
+            }
+            
+            const img = new Image();
+            img.onload = () => resolve(true);
+            img.onerror = () => resolve(false);
+            img.src = url;
+        });
+    },
+    
+    /**
+     * Creates a fallback image
+     * @param {string} text - Text to display in image
+     * @param {string} color - Background color
+     * @returns {string} Data URL of image
+     */
+    createFallbackImage: function(text = '?', color = '#FF6B6B') {
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.width = 200;
+            canvas.height = 200;
+            const ctx = canvas.getContext('2d');
+            
+            // Draw background
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(100, 100, 100, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Draw text
+            ctx.fillStyle = 'white';
+            ctx.font = '80px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, 100, 100);
+            
+            return canvas.toDataURL('image/png');
+        } catch (e) {
+            console.error('Error creating fallback image:', e);
+            return '';
+        }
     }
 };

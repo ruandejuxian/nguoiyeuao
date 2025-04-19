@@ -102,16 +102,16 @@ const UI = {
                 e.preventDefault();
                 
                 // Get form values
-                const name = document.getElementById('char-name').value.trim();
-                const gender = document.getElementById('char-gender').value;
-                const age = parseInt(document.getElementById('char-age').value);
-                const personality = document.getElementById('char-personality').value.trim();
-                const interests = document.getElementById('char-interests').value.trim();
+                const name = document.getElementById('character-name').value.trim();
+                const gender = document.getElementById('character-gender').value;
+                const age = parseInt(document.getElementById('character-age').value);
+                const personality = document.getElementById('character-personality').value.trim();
+                const interests = document.getElementById('character-interests').value.trim();
                 
                 // Get selected avatar
                 const selectedAvatar = document.querySelector('.avatar-option.selected');
                 const avatar = selectedAvatar ? 
-                    `assets/images/${selectedAvatar.getAttribute('data-avatar')}` : 
+                    selectedAvatar.getAttribute('data-avatar') : 
                     CONFIG.CHARACTER.DEFAULT_AVATAR;
                 
                 // Validate form
@@ -142,7 +142,7 @@ const UI = {
                 });
                 
                 // Switch to chat tab
-                this.switchTab('chat-tab');
+                this.switchTab('chat-content');
                 
                 // Show success message
                 Utils.showModal('alert-modal', {
@@ -199,7 +199,7 @@ const UI = {
                 if (!apiKey) {
                     Utils.showModal('alert-modal', {
                         title: 'Thiếu thông tin',
-                        message: 'Vui lòng nhập API Key của Gemini.'
+                        message: 'Vui lòng nhập API Key của OpenAI.'
                     });
                     return;
                 }
@@ -208,12 +208,7 @@ const UI = {
                 Storage.save(CONFIG.API.STORAGE_KEYS.API_KEY, apiKey);
                 
                 // Update connection status
-                const statusIndicator = document.querySelector('.status-indicator');
-                const statusText = document.querySelector('.status-text');
-                
-                statusIndicator.classList.remove('offline');
-                statusIndicator.classList.add('online');
-                statusText.textContent = 'Đã kết nối API';
+                this.updateConnectionStatus(true);
                 
                 // Show success message
                 Utils.showModal('alert-modal', {
@@ -242,7 +237,7 @@ const UI = {
         }
         
         // Reset character button
-        const resetCharBtn = document.getElementById('reset-character');
+        const resetCharBtn = document.getElementById('delete-character');
         if (resetCharBtn) {
             resetCharBtn.addEventListener('click', () => {
                 Utils.showModal('confirm-modal', {
@@ -267,7 +262,7 @@ const UI = {
                     title: 'Xác nhận xóa',
                     message: 'Bạn có chắc chắn muốn xóa tất cả dữ liệu? Hành động này không thể hoàn tác.',
                     onConfirm: () => {
-                        Storage.clearAll();
+                        Storage.clear();
                         Utils.showModal('alert-modal', {
                             title: 'Xóa thành công',
                             message: 'Tất cả dữ liệu đã được xóa. Trang sẽ được tải lại.',
@@ -289,7 +284,23 @@ const UI = {
         const alertCloseBtn = document.getElementById('alert-close');
         if (alertCloseBtn) {
             alertCloseBtn.addEventListener('click', () => {
-                Utils.hideModal('alert-modal');
+                document.getElementById('alert-modal').style.display = 'none';
+            });
+        }
+        
+        // Confirm modal cancel button
+        const confirmCancelBtn = document.getElementById('confirm-cancel');
+        if (confirmCancelBtn) {
+            confirmCancelBtn.addEventListener('click', () => {
+                document.getElementById('confirm-modal').style.display = 'none';
+            });
+        }
+        
+        // Image view close button
+        const closeImageViewBtn = document.getElementById('close-image-view');
+        if (closeImageViewBtn) {
+            closeImageViewBtn.addEventListener('click', () => {
+                document.getElementById('image-view-modal').style.display = 'none';
             });
         }
     },
@@ -302,14 +313,16 @@ const UI = {
         const statusIndicator = document.querySelector('.status-indicator');
         const statusText = document.querySelector('.status-text');
         
-        if (isConnected) {
-            statusIndicator.classList.remove('offline');
-            statusIndicator.classList.add('online');
-            statusText.textContent = 'Đã kết nối API';
-        } else {
-            statusIndicator.classList.remove('online');
-            statusIndicator.classList.add('offline');
-            statusText.textContent = 'Chưa kết nối API';
+        if (statusIndicator && statusText) {
+            if (isConnected) {
+                statusIndicator.classList.remove('offline');
+                statusIndicator.classList.add('online');
+                statusText.textContent = 'Đã kết nối API';
+            } else {
+                statusIndicator.classList.remove('online');
+                statusIndicator.classList.add('offline');
+                statusText.textContent = 'Chưa kết nối API';
+            }
         }
     }
 };

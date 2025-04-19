@@ -19,16 +19,16 @@
             </div>
             <nav class="nav-menu">
                 <ul>
-                    <li id="chat-tab" class="active"><i class="fas fa-comment"></i> Chat</li>
-                    <li id="create-tab"><i class="fas fa-user-plus"></i> Tạo Nhân Vật</li>
-                    <li id="diary-tab"><i class="fas fa-book"></i> Nhật Ký</li>
-                    <li id="game-tab"><i class="fas fa-gamepad"></i> Mini Game</li>
-                    <li id="settings-tab"><i class="fas fa-cog"></i> Cài Đặt</li>
+                    <li id="chat-tab" data-tab="chat-content" class="active"><i class="fas fa-comment"></i> Chat</li>
+                    <li id="create-tab" data-tab="create-content"><i class="fas fa-user-plus"></i> Tạo Nhân Vật</li>
+                    <li id="diary-tab" data-tab="diary-content"><i class="fas fa-book"></i> Nhật Ký</li>
+                    <li id="game-tab" data-tab="game-content"><i class="fas fa-gamepad"></i> Mini Game</li>
+                    <li id="settings-tab" data-tab="settings-content"><i class="fas fa-cog"></i> Cài Đặt</li>
                 </ul>
             </nav>
             <div class="connection-status">
                 <div class="status-indicator offline" id="api-status"></div>
-                <span>Chưa kết nối API</span>
+                <span class="status-text">Chưa kết nối API</span>
             </div>
         </div>
 
@@ -60,7 +60,7 @@
                         <div class="welcome-message">
                             <h3>Chào mừng đến với Người Yêu Ảo!</h3>
                             <p>Hãy tạo nhân vật của bạn để bắt đầu trò chuyện.</p>
-                            <button class="create-character-btn" data-tab="create-tab">Tạo Nhân Vật Ngay</button>
+                            <button class="create-character-btn" data-tab="create-content">Tạo Nhân Vật Ngay</button>
                         </div>
                     </div>
                     <div class="chat-input">
@@ -262,12 +262,12 @@
     <script src="js/config.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/storage.js"></script>
+    <script src="js/ui.js"></script>
     <script src="js/character.js"></script>
     <script src="js/chat.js"></script>
     <script src="js/diary.js"></script>
     <script src="js/game.js"></script>
     <script src="js/google-api.js"></script>
-    <script src="js/ui.js"></script>
     <script src="js/additional-features.js"></script>
     <script src="js/main.js"></script>
 </body>

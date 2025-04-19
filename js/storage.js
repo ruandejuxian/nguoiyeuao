@@ -5,32 +5,29 @@ const Storage = {
     /**
      * Saves data to local storage
      * @param {string} key - Storage key
-     * @param {*} data - Data to save
-     * @returns {boolean} Success status
+     * @param {*} value - Value to save
      */
-    save: function(key, data) {
+    save: function(key, value) {
         try {
-            const serialized = JSON.stringify(data);
-            localStorage.setItem(key, serialized);
-            return true;
-        } catch (error) {
-            console.error('Error saving to storage:', error);
-            return false;
+            const serializedValue = JSON.stringify(value);
+            localStorage.setItem(key, serializedValue);
+        } catch (e) {
+            console.error('Error saving to storage:', e);
         }
     },
     
     /**
      * Loads data from local storage
      * @param {string} key - Storage key
-     * @returns {*} Loaded data or null if not found
+     * @returns {*} Loaded value
      */
     load: function(key) {
         try {
-            const serialized = localStorage.getItem(key);
-            if (serialized === null) return null;
-            return JSON.parse(serialized);
-        } catch (error) {
-            console.error('Error loading from storage:', error);
+            const serializedValue = localStorage.getItem(key);
+            if (serializedValue === null) return null;
+            return JSON.parse(serializedValue);
+        } catch (e) {
+            console.error('Error loading from storage:', e);
             return null;
         }
     },
@@ -38,28 +35,36 @@ const Storage = {
     /**
      * Removes data from local storage
      * @param {string} key - Storage key
-     * @returns {boolean} Success status
      */
     remove: function(key) {
         try {
             localStorage.removeItem(key);
-            return true;
-        } catch (error) {
-            console.error('Error removing from storage:', error);
-            return false;
+        } catch (e) {
+            console.error('Error removing from storage:', e);
         }
     },
     
     /**
      * Clears all data from local storage
-     * @returns {boolean} Success status
      */
     clear: function() {
         try {
             localStorage.clear();
-            return true;
-        } catch (error) {
-            console.error('Error clearing storage:', error);
+        } catch (e) {
+            console.error('Error clearing storage:', e);
+        }
+    },
+    
+    /**
+     * Checks if a key exists in local storage
+     * @param {string} key - Storage key
+     * @returns {boolean} Whether key exists
+     */
+    exists: function(key) {
+        try {
+            return localStorage.getItem(key) !== null;
+        } catch (e) {
+            console.error('Error checking storage:', e);
             return false;
         }
     }

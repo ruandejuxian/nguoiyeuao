@@ -3,38 +3,16 @@
  */
 const CONFIG = {
     /**
-     * API configuration
-     */
-    API: {
-        /**
-         * API endpoint for chat
-         */
-        ENDPOINT: 'https://api.openai.com/v1/chat/completions',
-        
-        /**
-         * Storage keys for API
-         */
-        STORAGE_KEYS: {
-            API_KEY: 'openai_api_key'
-        },
-        
-        /**
-         * Default model to use
-         */
-        DEFAULT_MODEL: 'gpt-3.5-turbo'
-    },
-    
-    /**
      * Character configuration
      */
     CHARACTER: {
         /**
          * Storage key for character data
          */
-        STORAGE_KEY: 'virtual_companion_character',
+        STORAGE_KEY: 'virtual-companion-character',
         
         /**
-         * Default avatar URL
+         * Default avatar
          */
         DEFAULT_AVATAR: 'img/default-avatar.png',
         
@@ -57,27 +35,23 @@ const CONFIG = {
         /**
          * Storage key for chat history
          */
-        STORAGE_KEY: 'virtual_companion_chat',
+        STORAGE_KEY: 'virtual-companion-chat',
         
         /**
          * Maximum number of messages to keep in history
          */
-        MAX_HISTORY: 100,
+        MAX_HISTORY: 1000,
         
         /**
          * Maximum number of messages to include in context
          */
-        MAX_CONTEXT: 10,
-        
-        /**
-         * Typing speed (characters per second)
-         */
-        TYPING_SPEED: 20,
+        MAX_CONTEXT: 20,
         
         /**
          * Maximum file size for uploads (in bytes)
+         * Default: 5MB
          */
-        MAX_FILE_SIZE: 5 * 1024 * 1024 // 5MB
+        MAX_FILE_SIZE: 5 * 1024 * 1024
     },
     
     /**
@@ -87,7 +61,7 @@ const CONFIG = {
         /**
          * Storage key for diary entries
          */
-        STORAGE_KEY: 'virtual_companion_diary',
+        STORAGE_KEY: 'virtual-companion-diary',
         
         /**
          * Maximum number of entries to keep
@@ -102,7 +76,60 @@ const CONFIG = {
         /**
          * Storage key for game data
          */
-        STORAGE_KEY: 'virtual_companion_game'
+        STORAGE_KEY: 'virtual-companion-game',
+        
+        /**
+         * Quiz configuration
+         */
+        QUIZ: {
+            /**
+             * Number of questions per round
+             */
+            QUESTIONS_PER_ROUND: 5,
+            
+            /**
+             * Intimacy points per correct answer
+             */
+            POINTS_PER_CORRECT: 2
+        },
+        
+        /**
+         * Memory game configuration
+         */
+        MEMORY: {
+            /**
+             * Grid size
+             */
+            GRID_SIZE: 4,
+            
+            /**
+             * Intimacy points for completion
+             */
+            COMPLETION_POINTS: 5
+        }
+    },
+    
+    /**
+     * API configuration
+     */
+    API: {
+        /**
+         * Storage keys for API settings
+         */
+        STORAGE_KEYS: {
+            API_KEY: 'virtual-companion-api-key',
+            API_TYPE: 'virtual-companion-api-type'
+        },
+        
+        /**
+         * Default model for OpenAI
+         */
+        DEFAULT_MODEL: 'gpt-3.5-turbo',
+        
+        /**
+         * Character.AI character ID
+         */
+        CHARACTER_AI_ID: 'default-character-id'
     },
     
     /**
@@ -110,28 +137,82 @@ const CONFIG = {
      */
     GOOGLE_API: {
         /**
-         * Google API key
+         * Client ID for Google API
          */
-        API_KEY: 'AIzaSyDSih_kVKFSbPaak6lHIfp1V6fOkCty0rM',
+        CLIENT_ID: '123456789012-abcdefghijklmnopqrstuvwxyz123456.apps.googleusercontent.com',
         
         /**
-         * Google client ID
+         * API scopes
          */
-        CLIENT_ID: '536864309230-uh3862et3pemo34k2lr3fhks4db3k5a7.apps.googleusercontent.com',
-        
-        /**
-         * Google API scopes
-         */
-        SCOPES: 'https://www.googleapis.com/auth/drive.file',
-        
-        /**
-         * Google API discovery docs
-         */
-        DISCOVERY_DOCS: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+        SCOPES: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
         
         /**
          * Backup filename
          */
-        BACKUP_FILENAME: 'virtual_companion_backup.json'
+        BACKUP_FILENAME: 'nguoi-yeu-ao-backup.json',
+        
+        /**
+         * Google Sheets API scope
+         */
+        SHEETS_SCOPE: 'https://www.googleapis.com/auth/spreadsheets'
+    },
+    
+    /**
+     * Theme configuration
+     */
+    THEME: {
+        /**
+         * Storage key for theme settings
+         */
+        STORAGE_KEY: 'virtual-companion-theme',
+        
+        /**
+         * Available themes
+         */
+        THEMES: ['light', 'dark']
+    },
+    
+    /**
+     * Notification configuration
+     */
+    NOTIFICATION: {
+        /**
+         * Storage key for notification settings
+         */
+        STORAGE_KEY: 'virtual-companion-notification',
+        
+        /**
+         * Default notification schedule (in hours)
+         */
+        DEFAULT_SCHEDULE: 24
+    },
+    
+    /**
+     * Special events configuration
+     */
+    SPECIAL_EVENTS: {
+        /**
+         * Valentine's Day
+         */
+        VALENTINES_DAY: {
+            month: 2,
+            day: 14
+        },
+        
+        /**
+         * Christmas
+         */
+        CHRISTMAS: {
+            month: 12,
+            day: 25
+        },
+        
+        /**
+         * New Year
+         */
+        NEW_YEAR: {
+            month: 1,
+            day: 1
+        }
     }
 };

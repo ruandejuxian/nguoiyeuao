@@ -51,29 +51,19 @@ const Chat = {
         // Create emoji picker if it doesn't exist
         if (!emojiPickerContainer.querySelector('emoji-picker')) {
             try {
-                const picker = document.createElement('emoji-picker');
-                emojiPickerContainer.appendChild(picker);
-                
-                // Handle emoji selection
-                picker.addEventListener('emoji-click', event => {
-                    const emoji = event.detail.unicode;
+                // Load emoji-picker element script dynamically if not already loaded
+                if (!customElements.get('emoji-picker')) {
+                    const script = document.createElement('script');
+                    script.src = 'https://cdn.jsdelivr.net/npm/emoji-picker-element@1.18.3/index.js';
+                    script.async = true;
+                    document.head.appendChild(script);
                     
-                    // Insert emoji at cursor position
-                    const start = messageInput.selectionStart;
-                    const end = messageInput.selectionEnd;
-                    const text = messageInput.value;
-                    
-                    messageInput.value = text.substring(0, start) + emoji + text.substring(end);
-                    
-                    // Move cursor after emoji
-                    messageInput.selectionStart = messageInput.selectionEnd = start + emoji.length;
-                    
-                    // Focus back on input
-                    messageInput.focus();
-                    
-                    // Hide emoji picker
-                    emojiPickerContainer.style.display = 'none';
-                });
+                    script.onload = () => {
+                        this.createEmojiPicker(emojiPickerContainer, messageInput);
+                    };
+                } else {
+                    this.createEmojiPicker(emojiPickerContainer, messageInput);
+                }
             } catch (e) {
                 console.error('Error initializing emoji picker:', e);
             }
@@ -94,6 +84,41 @@ const Chat = {
                 emojiPickerContainer.style.display = 'none';
             }
         });
+    },
+    
+    /**
+     * Creates emoji picker element
+     * @param {HTMLElement} container - Container for emoji picker
+     * @param {HTMLElement} input - Input element to insert emojis
+     */
+    createEmojiPicker: function(container, input) {
+        try {
+            const picker = document.createElement('emoji-picker');
+            container.appendChild(picker);
+            
+            // Handle emoji selection
+            picker.addEventListener('emoji-click', event => {
+                const emoji = event.detail.unicode;
+                
+                // Insert emoji at cursor position
+                const start = input.selectionStart;
+                const end = input.selectionEnd;
+                const text = input.value;
+                
+                input.value = text.substring(0, start) + emoji + text.substring(end);
+                
+                // Move cursor after emoji
+                input.selectionStart = input.selectionEnd = start + emoji.length;
+                
+                // Focus back on input
+                input.focus();
+                
+                // Hide emoji picker
+                container.style.display = 'none';
+            });
+        } catch (e) {
+            console.error('Error creating emoji picker:', e);
+        }
     },
     
     /**
@@ -307,10 +332,8 @@ const Chat = {
                     <div class="message-avatar">
                         <img src="${avatarSrc}" alt="Avatar">
                     </div>
-                    <div class="message-bubble">
-                        <div class="message-content">${formattedMessage}</div>
-                        <div class="message-time">${Utils.formatDate(new Date())}</div>
-                    </div>
+                    <div class="message-content">${formattedMessage}</div>
+                    <div class="message-time">${Utils.formatDate(new Date())}</div>
                 `;
                 
                 // Add to chat
@@ -404,8 +427,9 @@ const Chat = {
         // Show typing indicator
         this.showTypingIndicator();
         
-        // Get API key
+        // Get API key and type
         const apiKey = Storage.load(CONFIG.API.STORAGE_KEYS.API_KEY);
+        const apiType = Storage.load(CONFIG.API.STORAGE_KEYS.API_TYPE) || 'openai';
         
         if (!apiKey) {
             // Hide typing indicator
@@ -419,8 +443,8 @@ const Chat = {
         // Prepare context
         const context = this.prepareContext();
         
-        // Prepare prompt
-        const prompt = this.preparePrompt(message, context);
+        // Prepare prompt based on API type
+        const prompt = this.preparePrompt(message, context, apiType);
         
         // Simulate API call (for demo)
         setTimeout(() => {
@@ -462,13 +486,11 @@ const Chat = {
                         <div class="message-avatar">
                             <img src="${avatarSrc}" alt="Avatar">
                         </div>
-                        <div class="message-bubble">
-                            <div class="message-content">
-                                <div class="typing-dots">
-                                    <span></span>
-                                    <span></span>
-                                    <span></span>
-                                </div>
+                        <div class="message-content">
+                            <div class="typing-dots">
+                                <span></span>
+                                <span></span>
+                                <span></span>
                             </div>
                         </div>
                     `;
@@ -513,9 +535,10 @@ const Chat = {
      * Prepares prompt for API call
      * @param {string} message - User message
      * @param {Array} context - Context messages
+     * @param {string} apiType - API type (openai, gemini, etc.)
      * @returns {Object} Prompt object
      */
-    preparePrompt: function(message, context) {
+    preparePrompt: function(message, context, apiType = 'openai') {
         // Create system message
         const systemMessage = {
             role: 'system',
@@ -528,13 +551,39 @@ const Chat = {
             ...context
         ];
         
-        // Create prompt object
-        return {
-            model: CONFIG.API.DEFAULT_MODEL,
-            messages: messages,
-            temperature: 0.7,
-            max_tokens: 500
-        };
+        // Create prompt object based on API type
+        switch (apiType) {
+            case 'gemini':
+                return {
+                    contents: messages.map(msg => ({
+                        role: msg.role === 'assistant' ? 'model' : msg.role,
+                        parts: [{ text: msg.content }]
+                    })),
+                    generationConfig: {
+                        temperature: 0.7,
+                        maxOutputTokens: 500,
+                    }
+                };
+                
+            case 'characterai':
+                return {
+                    character_id: CONFIG.API.CHARACTER_AI_ID,
+                    messages: context.map(msg => ({
+                        role: msg.role,
+                        content: msg.content
+                    })),
+                    message: message
+                };
+                
+            case 'openai':
+            default:
+                return {
+                    model: CONFIG.API.DEFAULT_MODEL,
+                    messages: messages,
+                    temperature: 0.7,
+                    max_tokens: 500
+                };
+        }
     },
     
     /**

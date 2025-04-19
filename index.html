@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/emoji-picker-element@1.18.3/index.css">
     <link rel="stylesheet" href="css/style.css">
     <link rel="icon" href="img/favicon.ico" type="image/x-icon">
+    <script src="https://cdn.jsdelivr.net/npm/emoji-picker-element@1.18.3/index.js"></script>
 </head>
 <body>
     <div class="app-container">
@@ -177,14 +178,31 @@
                     <div class="settings-section">
                         <h3>API Key</h3>
                         <div class="form-group">
-                            <label for="api-key">OpenAI API Key:</label>
-                            <input type="password" id="api-key" placeholder="sk-...">
+                            <label for="api-type">Loại API:</label>
+                            <select id="api-type">
+                                <option value="openai">OpenAI</option>
+                                <option value="gemini">Google Gemini</option>
+                                <option value="characterai">Character.AI</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="api-key">API Key:</label>
+                            <input type="password" id="api-key" placeholder="Nhập API key của bạn">
                         </div>
                         <button id="save-api-key" class="primary-btn">Lưu API Key</button>
-                        <p class="settings-note">Lưu ý: API Key của bạn được lưu trữ cục bộ và không được gửi đến bất kỳ máy chủ nào khác ngoài OpenAI.</p>
+                        <p class="settings-note">Lưu ý: API Key của bạn được lưu trữ cục bộ và không được gửi đến bất kỳ máy chủ nào khác ngoài API đã chọn.</p>
                     </div>
                     <div class="settings-section">
                         <h3>Google Drive</h3>
+                        <div id="user-profile" class="user-profile" style="display: none;">
+                            <div class="user-avatar">
+                                <img id="google-user-avatar" src="" alt="User Avatar">
+                            </div>
+                            <div class="user-info">
+                                <div id="google-user-name" class="user-name">Chưa đăng nhập</div>
+                                <div id="google-user-email" class="user-email"></div>
+                            </div>
+                        </div>
                         <div class="google-auth">
                             <button id="google-auth-btn" class="secondary-btn">
                                 <i class="fab fa-google"></i> Đăng nhập với Google
@@ -195,6 +213,47 @@
                             <button id="backup-data" class="primary-btn" disabled>Sao lưu dữ liệu</button>
                             <button id="restore-data" class="primary-btn" disabled>Khôi phục dữ liệu</button>
                         </div>
+                        <div class="form-group" style="margin-top: 20px;">
+                            <label for="sync-type">Đồng bộ dữ liệu với:</label>
+                            <select id="sync-type">
+                                <option value="drive">Google Drive</option>
+                                <option value="sheets">Google Sheets</option>
+                            </select>
+                        </div>
+                        <div id="sheets-options" style="display: none;">
+                            <div class="form-group">
+                                <label for="sheet-id">Google Sheet ID (tùy chọn):</label>
+                                <input type="text" id="sheet-id" placeholder="ID của Google Sheet">
+                            </div>
+                            <button id="create-sheet" class="secondary-btn">Tạo Sheet mới</button>
+                        </div>
+                    </div>
+                    <div class="settings-section">
+                        <h3>Giao diện</h3>
+                        <div class="form-group">
+                            <label for="theme-select">Chế độ:</label>
+                            <select id="theme-select">
+                                <option value="light">Sáng</option>
+                                <option value="dark">Tối</option>
+                            </select>
+                        </div>
+                        <button id="apply-theme" class="secondary-btn">Áp dụng</button>
+                    </div>
+                    <div class="settings-section">
+                        <h3>Nhắc nhở</h3>
+                        <div class="form-group">
+                            <label for="notification-enabled">Bật nhắc nhở:</label>
+                            <input type="checkbox" id="notification-enabled">
+                        </div>
+                        <div class="form-group">
+                            <label for="notification-interval">Tần suất nhắc nhở:</label>
+                            <select id="notification-interval">
+                                <option value="12">12 giờ</option>
+                                <option value="24" selected>24 giờ</option>
+                                <option value="48">48 giờ</option>
+                            </select>
+                        </div>
+                        <button id="save-notification" class="secondary-btn">Lưu cài đặt</button>
                     </div>
                     <div class="settings-section">
                         <h3>Nhân Vật</h3>
@@ -258,7 +317,6 @@
     </div>
 
     <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/emoji-picker-element@1.18.3/index.js"></script>
     <script src="js/config.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/storage.js"></script>
